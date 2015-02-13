@@ -1,0 +1,46 @@
+﻿<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+		<meta charset="utf-8">
+		<title>DelauneyTriangulation</title>
+		<link rel="stylesheet" type="text/css" href="css/normalize.css" />
+		<link rel="stylesheet" type="text/css" href="css/index.css">
+		<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+		<script type="text/javascript" src="js/numeric-1.2.6.min.js"></script>
+		<script type="text/javascript" src="js/delaunay.js"></script>    
+		<script type="text/javascript" src="js/main.js"></script>    
+	</head>
+	<body>
+		<div id="page">
+			<div>
+				<p>
+					ドロネー三角形分割の三角形探索アルゴリズムであるローソンの探査法のデモプログラム．<br />
+					下の枠中でクリックした点を内包する三角形を探索する．<br />
+					緑の三角形は出発する三角形，オレンジは内外判定に用いた辺を示す．
+				</p>
+			</div>
+			<div>
+				<input type="button" value="Reset" id="reset" style="margin: 10px;">
+				<label><input id="colorCheckBox" type="checkbox">色付き</label>
+				<label><input id="gaisetuenCheckBox" type="checkbox">外接円の描画</label>
+			</div>
+			<div>
+				<canvas id="myCanvas" width="600" height="400" style="border: solid 1px;" oncontextmenu="return false"></canvas>
+			</div>
+			<div>
+				<h3>ソースコード</h3>
+				<ul>
+					<li><a href="https://github.com/sasekazu/lawson-triangle-detection">GitHub</a></li>
+				</ul>
+				<h4>参考資料</h4>
+				<ul>
+					<li>谷口健男，FEMのための要素自動分割，森北出版，1992.</li>
+				</ul>
+			</div>
+		</div>
+		<footer style="text-align: center;">
+			<a href="http://www.sasekazu.info">sasekazu.info</a>
+		</footer>
+	</body>
+</html>
