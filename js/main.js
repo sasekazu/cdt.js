@@ -3,7 +3,7 @@
 /// <reference path="numeric-1.2.6.min.js" />
 
 var colors=['lightsalmon', 'lightseagreen', 'antiquewhite', 'aquamarine', 'beige', 'burlywood', 'mistyrose', 'mediumpurple', 'darkcyan', 'darkgray', 'orchid', 'peru', 'dodgerblue'];
-var N=10;
+var N=20;
 var distMin=20;
 
 $(document).ready(function () {
@@ -19,6 +19,8 @@ function initEvents(canvas) {
 	var points=[];	// 頂点の座標群
 	var tri=[];		// 頂点のコネクティビティ
 	var head=[];	// DelauneyTriangleクラスのインスタンス配列
+	var focusTri=null;
+
 	init();
 
 	var selectPoint=null;
@@ -38,7 +40,8 @@ function initEvents(canvas) {
 				return;
 			}
 			clickState="down";
-			clickPoint = [canvasX, canvasY];
+			clickPoint=[canvasX, canvasY];
+			lawson();
 			draw();
 		}
 	});
@@ -56,6 +59,7 @@ function initEvents(canvas) {
 		}
 		if(clickState=="down") {
 			clickPoint=[canvasX, canvasY];
+			lawson();
 			draw();
 		}
 	});
@@ -70,7 +74,20 @@ function initEvents(canvas) {
 	$("#reset").click(function () {
 		init();
 		draw();
-	})
+	});
+	$("#prev").click(function () {
+		if(focusTri.prev!=null) {
+			focusTri=focusTri.prev;
+		}
+		draw();
+	});
+	$("#next").click(function () {
+		if(focusTri.next!=null) {
+			focusTri=focusTri.next;
+		}
+		draw();
+	});
+
 
 	
 	// 点群の生成と三角形分割
@@ -83,20 +100,22 @@ function initEvents(canvas) {
 		head = makeDelauneyTriangleList(points, tri);
 		// DelauneyTriangleオブジェクトの隣接関係を作成
 		makeDataStructureForTriangles(head);
+		focusTri=head;
 	}
 
+
+	function lawson() {
+		// ローソンの三角形探査
+		if(clickPoint.length!=0) {
+			var resultTri=lawsonTriangleDetection(points, head, clickPoint);
+			points.push(clickPoint);
+			resultTri.deleteAndAdd(points.length-1, points);
+		}
+	}
 
 	// レンダリングのリフレッシュを行う関数
 	function draw() {
 
-
-		// ローソンの三角形探査
-		if(clickPoint.length != 0) {
-			var resultTri = lawsonTriangleDetection(points, head, clickPoint);
-			points.push(clickPoint);
-			resultTri.deleteAndAdd(points.length-1, points);
-		}
-		
 		var context = canvas.get(0).getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
 
@@ -105,7 +124,11 @@ function initEvents(canvas) {
 		if($('#colorCheckBox').is(':checked')) {
 			fillTrianglesFromHead(canvas, points, head);
 		}
+		context.strokeStyle='gray';
+		drawTriangles(canvas, points, tri);
+		context.strokeStyle='black';
 		drawTrianglesFromHead(canvas, points, head);
+		fillAdjacents(canvas, points, focusTri);
 
 		// 外接円の描画
 		if($('#gaisetuenCheckBox').is(':checked')) {
@@ -116,6 +139,7 @@ function initEvents(canvas) {
 		// 点の描画
 		drawPoints(canvas, points);
 
+		// ある三角形のadjacentを可視化
 
 		// ローソンのアルゴリズムの過程で通った三角形の描画
 		//context.fillStyle='orange';
@@ -339,6 +363,39 @@ function drawTrianglesFromHead(canvas, points, head) {
 		context.lineTo(points[tri.vertexID[2]][0], points[tri.vertexID[2]][1]);
 		context.lineTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
 		context.stroke();
+	}
+}
+
+function fillAdjacents(canvas, points, head) {
+	var context=canvas.get(0).getContext("2d");
+	var canvasWidth=canvas.width();
+	var canvasHeight=canvas.height();
+	context.setTransform(1, 0, 0, 1, 0, 0);
+	var colors=['red', 'green', 'blue'];
+
+
+	context.fillStyle='black';
+	tri=head;
+	context.beginPath();
+	context.moveTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
+	context.lineTo(points[tri.vertexID[1]][0], points[tri.vertexID[1]][1]);
+	context.lineTo(points[tri.vertexID[2]][0], points[tri.vertexID[2]][1]);
+	context.lineTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
+	context.fill();
+
+
+	for(var i=0; i<3; ++i) {
+		tri=head.adjacent[i];
+		if(tri==null) {
+			continue;
+		}
+		context.fillStyle=colors[i%colors.length];
+		context.beginPath();
+		context.moveTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
+		context.lineTo(points[tri.vertexID[1]][0], points[tri.vertexID[1]][1]);
+		context.lineTo(points[tri.vertexID[2]][0], points[tri.vertexID[2]][1]);
+		context.lineTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
+		context.fill();
 	}
 }
 

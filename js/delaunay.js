@@ -54,9 +54,15 @@ DelauneyTriangle.prototype.deleteAndAdd = function (newPointID, points) {
 		newTri[i].adjacent[0]=newTri[(i+2)%3];
 		newTri[i].adjacent[1]=this.adjacent[i];
 		newTri[i].adjacent[2]=newTri[(i+1)%3];
+		if(this.adjacent[i]!=null) {
+			this.adjacent[i].adjacent[this.edgeIDinAdjacent[i]]=newTri[i];
+		}
 		newTri[i].edgeIDinAdjacent[0]=2;
 		newTri[i].edgeIDinAdjacent[1]=this.edgeIDinAdjacent[i];
-		newTri[i].edgeIDinAdjacent[2]=1;
+		newTri[i].edgeIDinAdjacent[2]=0;
+		if(this.adjacent[i]!=null) {
+			this.adjacent[i].edgeIDinAdjacent[this.edgeIDinAdjacent[i]]=1;
+		}
 	}
 	
 	swapping(newPointID, newTri[0], points);
@@ -80,13 +86,15 @@ DelauneyTriangle.prototype.deleteAndAdd = function (newPointID, points) {
 			}
 		}
 		adjTri = tri.adjacent[oppEdgeTri];
+		if(adjTri==null) {
+			return;
+		}
 		oppEdgeAdj = tri.edgeIDinAdjacent[oppEdgeTri];
 		farPtAdj = (oppEdgeAdj+2)%3;
 		vOpp = numeric.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
 		vFar = numeric.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
 		// 対辺がvFarより短いときスワップ
 		if(numeric.norm2(vOpp) > numeric.norm2(vFar)) {
-
 			// vertexID の更新
 			tri.vertexID[(newPtTri+2)%3] = adjTri.vertexID[farPtAdj];
 			adjTri.vertexID[(farPtAdj+2)%3] = tri.vertexID[newPtTri];
@@ -95,11 +103,23 @@ DelauneyTriangle.prototype.deleteAndAdd = function (newPointID, points) {
 			adjTri.adjacent[oppEdgeAdj]=tri.adjacent[(oppEdgeTri+1)%3];
 			tri.adjacent[(oppEdgeTri+1)%3]=adjTri;
 			adjTri.adjacent[(oppEdgeAdj+1)%3]=tri;
+			if(tri.adjacent[oppEdgeTri]!=null) {
+				tri.adjacent[oppEdgeTri].adjacent[adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3]]=tri;
+			}
+			if(adjTri.adjacent[oppEdgeAdj]!=null) {
+				adjTri.adjacent[oppEdgeAdj].adjacent[tri.edgeIDinAdjacent[(oppEdgeTri+1)%3]]=adjTri;
+			}
 			// edgeIDinAdjacent の更新
 			tri.edgeIDinAdjacent[oppEdgeTri]=adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3];
 			adjTri.edgeIDinAdjacent[oppEdgeAdj]=tri.edgeIDinAdjacent[(oppEdgeTri+1)%3];
-			tri.edgeIDinAdjacent[(oppEdgeTri+1)%3]=oppEdgeAdj;
-			adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3]=oppEdgeTri;
+			tri.edgeIDinAdjacent[(oppEdgeTri+1)%3]=(oppEdgeAdj+1)%3;
+			adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3]=(oppEdgeTri+1)%3;
+			if(tri.adjacent[oppEdgeTri]!=null) {
+				tri.adjacent[oppEdgeTri].edgeIDinAdjacent[tri.edgeIDinAdjacent[oppEdgeTri]]=oppEdgeTri;
+			}
+			if(adjTri.adjacent[oppEdgeAdj]!=null) {
+				adjTri.adjacent[oppEdgeAdj].edgeIDinAdjacent[adjTri.edgeIDinAdjacent[oppEdgeAdj]]=oppEdgeAdj;
+			}
 		}
 	}
 }
