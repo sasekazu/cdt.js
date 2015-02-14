@@ -2,9 +2,9 @@
 /// <reference path="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" />
 /// <reference path="numeric-1.2.6.min.js" />
 
-var colors=['lightsalmon', 'lightseagreen', 'antiquewhite', 'aquamarine', 'beige', 'burlywood', 'mistyrose', 'mediumpurple', 'darkcyan', 'darkgray', 'orchid', 'peru', 'dodgerblue'];
+var colors=['lightsalmon', 'lightseagreen', 'aquamarine', 'beige', 'burlywood', 'mistyrose', 'mediumpurple', 'darkcyan', 'darkgray', 'orchid', 'peru', 'dodgerblue'];
 var N=20;
-var distMin=20;
+var distMin=100;
 
 $(document).ready(function () {
 	initEvents($("#myCanvas"));
@@ -120,9 +120,20 @@ function initEvents(canvas) {
 
 	// レンダリングのリフレッシュを行う関数
 	function draw() {
+		head=head.next;
+		while(head.prev!=null) {
+			head=head.prev
+		}
 
 		var context = canvas.get(0).getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
+
+		// 外接円の描画
+		if($('#gaisetuenCheckBox').is(':checked')) {
+			drawCircumcirclesFromHead(canvas, points, head);
+			//drawCircumcircles(canvas, points, tri);
+		}
+		context.fillStyle='black';
 
 		// 三角形の描画
 		context.strokeStyle='black';
@@ -133,13 +144,8 @@ function initEvents(canvas) {
 		//drawTriangles(canvas, points, tri);
 		context.strokeStyle='black';
 		drawTrianglesFromHead(canvas, points, head);
-		fillAdjacents(canvas, points, focusTri);
+		//fillAdjacents(canvas, points, focusTri);
 
-		// 外接円の描画
-		if($('#gaisetuenCheckBox').is(':checked')) {
-			drawCircumcircles(canvas, points, tri);
-		}
-		context.fillStyle='black';
 
 		// 点の描画
 		drawPoints(canvas, points);
@@ -441,6 +447,23 @@ function fillTriangles(canvas, points, triangles) {
 	}
 }
 
+
+// 三角形の外接円を描画
+function drawCircumcirclesFromHead(canvas, points, head) {
+	var context=canvas.get(0).getContext("2d");
+	var cir;
+	var i=0;
+	context.globalAlpha=0.3;
+	for(var tri=head; tri!=null; tri=tri.next) {
+		context.fillStyle=colors[i%colors.length];
+		context.beginPath();
+		cir=new Circumcircle(points[tri.vertexID[0]], points[tri.vertexID[1]], points[tri.vertexID[2]]);
+		context.arc(cir.p[0], cir.p[1], cir.rad, 0, Math.PI*2, true);
+		context.fill();
+		++i;
+	}
+	context.globalAlpha=1.0;
+}
 
 // 三角形の外接円を描画
 function drawCircumcircles(canvas, points, tri) {

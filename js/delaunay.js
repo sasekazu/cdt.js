@@ -123,10 +123,26 @@ DelauneyTriangle.prototype.swapping=function (newPointID, points, stack) {
 	}
 	oppEdgeAdj=tri.edgeIDinAdjacent[oppEdgeTri];
 	farPtAdj=(oppEdgeAdj+2)%3;
-	vOpp=numeric.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
-	vFar=numeric.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
-	// 対辺がvFarより短いときスワップ
-	if(numeric.norm2(vOpp)>numeric.norm2(vFar)) {
+
+
+	var swapFlag=false;
+
+	// newPoint が adjTri の外接円に含まれればスワップ
+	var c=new Circumcircle(
+				points[adjTri.vertexID[0]],
+				points[adjTri.vertexID[1]],
+				points[adjTri.vertexID[2]]
+			);
+	swapFlag = (numeric.norm2(numeric.sub(c.p, points[newPointID]))<c.rad);
+
+	// FEMのための要素自動分割」では、以下の3行のようにして
+	// 対辺がvFarより短いときスワップを行っているが、
+	// ドロネー三角分割にならないことがあるため外接円を使って判定する
+	//vOpp=numeric.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
+	//vFar=numeric.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
+	//swapFlag=(numeric.norm2(vOpp)>numeric.norm2(vFar));
+
+	if(swapFlag) {
 		// vertexID の更新
 		tri.vertexID[(newPtTri+2)%3]=adjTri.vertexID[farPtAdj];
 		adjTri.vertexID[(farPtAdj+2)%3]=tri.vertexID[newPtTri];
@@ -281,46 +297,16 @@ function DelaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin) {
 
 // 外接円クラス
 function Circumcircle(p1, p2, p3) {
-	this.p1=numeric.clone(p1);
-	this.p2=numeric.clone(p2);
-	this.p3=numeric.clone(p3);
-	this.a=this.len(this.p2, this.p3);
-	this.b=this.len(this.p3, this.p1);
-	this.c=this.len(this.p1, this.p2);
-	this.s=(this.a+this.b+this.c)*0.5;
-	this.S=this.calcTriArea();
-	this.rad=this.calcRad();
-	this.p=this.calcCenter();
+	var a=numeric.norm2(numeric.sub(p2, p3));
+	var b=numeric.norm2(numeric.sub(p3, p1));
+	var c=numeric.norm2(numeric.sub(p1, p2));
+	var s=(a+b+c)*0.5;
+	this.S=Math.sqrt(s*(s-a)*(s-b)*(s-c));	// area
+	this.rad=(a*b*c)/(4.0*this.S);
+	// Calc center
+	var tmpv1=numeric.mul(a*a*(b*b+c*c-a*a), p1);
+	var tmpv2=numeric.mul(b*b*(c*c+a*a-b*b), p2);
+	var tmpv3=numeric.mul(c*c*(a*a+b*b-c*c), p3);
+	this.p = numeric.div(numeric.add(numeric.add(tmpv1, tmpv2), tmpv3), 16*this.S*this.S);
 }
 
-Circumcircle.prototype.len=function (p1, p2) {
-	var r=numeric.sub(p1, p2);
-	var len=numeric.norm2(r);
-	return len;
-}
-
-Circumcircle.prototype.calcTriArea=function () {
-	var area=Math.sqrt(this.s*(this.s-this.a)*(this.s-this.b)*(this.s-this.c));
-	return area;
-}
-
-Circumcircle.prototype.calcRad=function () {
-	return (this.a*this.b*this.c)/(4.0*this.S);
-}
-
-Circumcircle.prototype.calcCenter=function () {
-	var tmp1=this.a*this.a*(this.b*this.b+this.c*this.c-this.a*this.a);
-	var tmpv1=numeric.mul(tmp1, this.p1);
-
-	var tmp2=this.b*this.b*(this.c*this.c+this.a*this.a-this.b*this.b);
-	var tmpv2=numeric.mul(tmp2, this.p2);
-
-	var tmp3=this.c*this.c*(this.a*this.a+this.b*this.b-this.c*this.c);
-	var tmpv3=numeric.mul(tmp3, this.p3);
-
-	var p;
-	p=numeric.add(tmpv1, tmpv2);
-	p=numeric.add(p, tmpv3);
-	p=numeric.div(p, 16*this.S*this.S);
-	return p;
-}
