@@ -2,61 +2,124 @@
 /// <reference path="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" />
 /// <reference path="numeric-1.2.6.min.js" />
 
+// ドロネー三角形分割関数
+// 引数1 inputPoints: 入力点の座標 [[x1,y1],[x2,y2],....]
+// 引数2,3,4,5 ymax, ymin, xmax, xmin: 入力点が含まれる領域の最大・最小座標
+// 返り値：
+//    オブジェクト
+//    points: 点の座標リスト (inputPointsに加えて点群を内包する大きい三角形の頂点を含む)
+//    head: ドロネー三角形クラスの連結リストの先頭への参照
+function DelaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin) {
+
+	var points=numeric.clone(inputPoints);	// 点の数 x 2(x,y)
+	var tri=[];	// 三角形の数 x 3(三角形頂点の点番号)
+
+	// すべての点を内包する
+	// 大きい三角形(superTriangle)の頂点を追加
+	// 下の点, 上の点1, 上の点2の順
+	points.unshift([(xmax+xmin)*0.5, ymin-(xmax-xmin)*0.5*1.73205080757]);
+	points.unshift([(xmax+xmin)*0.5-(xmax-xmin)*0.5-(ymax-ymin)/1.73205080757, ymax]);
+	points.unshift([(xmax+xmin)*0.5+(xmax-xmin)*0.5+(ymax-ymin)/1.73205080757, ymax]);
+	var head=new DelauneyTriangle(points, [0, 1, 2]);
+
+	// 点を逐次追加する
+	// まず点を内包する三角形をローソン探査法で探し
+	// その後、スワッピングアルゴリズムを用いて分割
+	var resultTri=head;
+	for(var i=3; i<points.length; ++i) {
+		resultTri=DelauneyTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
+		resultTri.addPoint(i, points);
+	}
+
+	return { points: points, head: head };
+}
+
 
 // ドロネー三角形分割用の三角形クラス
 // 引数 points 頂点の座標 [[x1,y1],[x2,y2],......]
 // 引数 indices 頂点のインデックス
 function DelauneyTriangle(points, indices){
-	this.adjacent=[null, null, null];	// 隣接する三角形の参照，辺12, 辺23，辺31において隣接する三角形を順に格納する
-	this.edgeIDinAdjacent=[-1,-1,-1];	// adjacentの各要素と対応．adjacent[i]が隣接する辺ID．辺IDはadjacent側のもの．	
+	this.adjacent;			// 隣接する三角形の参照，辺12, 辺23，辺31において隣接する三角形を順に格納する
+	this.edgeIDinAdjacent;	// adjacentの各要素と対応．adjacent[i]が隣接する辺ID．辺IDはadjacent側のもの．	
+	this.vertexID;			// 三角形の頂点のpoints配列におけるインデックス
+	this.prev;	// 双方向連結リストの前ポインタ
+	this.next;	// 双方向連結リストの次ポインタ
+	this.init(points, indices);
+}
+
+// 初期化関数
+// コンストラクタとして使う
+DelauneyTriangle.prototype.init=function (points, indices) {
+	this.adjacent=[null, null, null];
+	this.edgeIDinAdjacent=[-1, -1, -1];
 	this.vertexID=numeric.clone(indices);
-	this.init(points);
-	this.prev=null;	// 双方向連結リストの前ポインタ
-	this.next=null;	// 双方向連結リストの次ポインタ
+	this.prev=null;
+	this.next=null;
+	// 頂点が反時計回りになるように並べ替える
+	// v1 cross v2 のz座標が負であれば時計回り
+	var v1=numeric.sub(points[this.vertexID[1]], points[this.vertexID[0]]);
+	var v2=numeric.sub(points[this.vertexID[2]], points[this.vertexID[0]]);
+	var tmp;
+	if(v1[0]*v2[1]-v1[1]*v2[0]<0) {
+		tmp=this.vertexID[1];
+		this.vertexID[1]=this.vertexID[2];
+		this.vertexID[2]=tmp;
+	}
 }
 
-DelauneyTriangle.prototype.push=function (next) {
-	this.next=next;
-	next.prev=this;
+// プロパティをコピーする
+// 参照のプロパティ以外は値コピー
+DelauneyTriangle.prototype.cloneProperties=function () {
+	return {
+		adjacent: this.adjacent,
+		edgeIDinAdjacent: numeric.clone(this.edgeIDinAdjacent),
+		vertexID: numeric.clone(this.vertexID),
+		prev: this.prev,
+		next: this.next
+	};
 }
-
 
 // 新しい点を追加して三角形を分割する
-// このメソッド実行後、このインスタンス(this)は
-// 使われないので、GCに開放してほしい。
-// 実行後にthisはほかのインスタンスから参照されない
-// はずだが、確認はしていない。
-DelauneyTriangle.prototype.deleteAndAdd = function (newPointID, points) {
+DelauneyTriangle.prototype.addPoint = function (newPointID, points) {
 
 	// STEP1: 
 	// 追加点pを内包する三角形Tを三分割する
 	// Tの頂点をp1,p2,p3とすると
-	// 3つの新しい三角形 (p,p1,p2),(p,p2,p3),(p,p3,p1) が
-	// Tを削除した後に追加される
+	// 3つの新しい三角形 (p,p1,p2),(p,p2,p3),(p,p3,p1) が追加される
+	// ただし，Tのメモリ領域を(p,p1,p2)に割り当てる
+
+	// 削除する三角形のプロパティを退避
+	var rmTri = this.cloneProperties();
 
 	// 新しい三角形オブジェクトの作成
+	// 0番目の三角形はthisの領域を用いる
 	var indices;
 	var newTri=new Array(3);
 	for(var i = 0; i < 3; ++i) {
-		indices=[newPointID, this.vertexID[i], this.vertexID[(i+1)%3]];
-		newTri[i] = new DelauneyTriangle(points, indices);
+		indices=[newPointID, rmTri.vertexID[i], rmTri.vertexID[(i+1)%3]];
+		if(i==0) {
+			newTri[i]=this;
+			newTri[i].init(points, indices);
+		} else {
+			newTri[i]=new DelauneyTriangle(points, indices);
+		}
 	}
 
 	// next の更新
-	if(this.prev != null) {
-		this.prev.next=newTri[0];
+	if(rmTri.prev != null) {
+		rmTri.prev.next=newTri[0];
 	}
 	newTri[0].next=newTri[1];
 	newTri[1].next=newTri[2];
-	newTri[2].next=this.next;
+	newTri[2].next=rmTri.next;
 
 	// prev の更新
-	if(this.next != null) {
-		this.next.prev=newTri[2];
+	if(rmTri.next != null) {
+		rmTri.next.prev=newTri[2];
 	}
 	newTri[2].prev=newTri[1];
 	newTri[1].prev=newTri[0];
-	newTri[0].prev=this.prev;
+	newTri[0].prev=rmTri.prev;
 
 	// adjacent, edgeIDAdjacent の更新
 	// newPointを含む辺では他のnewTriと隣接
@@ -64,16 +127,16 @@ DelauneyTriangle.prototype.deleteAndAdd = function (newPointID, points) {
 	// もともとの三角形の隣接三角形と隣接する
 	for(var i = 0; i < 3; ++i) {
 		newTri[i].adjacent[0]=newTri[(i+2)%3];
-		newTri[i].adjacent[1]=this.adjacent[i];
+		newTri[i].adjacent[1]=rmTri.adjacent[i];
 		newTri[i].adjacent[2]=newTri[(i+1)%3];
-		if(this.adjacent[i]!=null) {
-			this.adjacent[i].adjacent[this.edgeIDinAdjacent[i]]=newTri[i];
+		if(rmTri.adjacent[i]!=null) {
+			rmTri.adjacent[i].adjacent[rmTri.edgeIDinAdjacent[i]]=newTri[i];
 		}
 		newTri[i].edgeIDinAdjacent[0]=2;
-		newTri[i].edgeIDinAdjacent[1]=this.edgeIDinAdjacent[i];
+		newTri[i].edgeIDinAdjacent[1]=rmTri.edgeIDinAdjacent[i];
 		newTri[i].edgeIDinAdjacent[2]=0;
-		if(this.adjacent[i]!=null) {
-			this.adjacent[i].edgeIDinAdjacent[this.edgeIDinAdjacent[i]]=1;
+		if(rmTri.adjacent[i]!=null) {
+			rmTri.adjacent[i].edgeIDinAdjacent[rmTri.edgeIDinAdjacent[i]]=1;
 		}
 	}
 	
@@ -175,124 +238,41 @@ DelauneyTriangle.prototype.swapping=function (newPointID, points, stack) {
 	}
 }
 
-DelauneyTriangle.prototype.init = function(points){
-	var v1=numeric.sub(points[this.vertexID[1]], points[this.vertexID[0]]);
-	var v2=numeric.sub(points[this.vertexID[2]], points[this.vertexID[0]]);
-	// もし，頂点が時計回りならばpoints[1]とpoints[2]を入れ替える
-	// v1 cross v2 のz座標が負であれば時計回り
-	var tmp;
-	if(v1[0]*v2[1]-v1[1]*v2[0]<0) {
-		tmp=this.vertexID[1];
-		this.vertexID[1]=this.vertexID[2];
-		this.vertexID[2]=tmp;
-	}
-}
 
 
-// ドロネー三角形分割関数
-// ※非常に効率の悪い実装
-// 引数1 inputPoints: 入力点の座標 [[x1,y1],[x2,y2],....]
-// 引数2,3,4,5 ymax, ymin, xmax, xmin: 入力点が含まれる領域の最大・最小座標
-// 返り値：triangleのコネクティビティ 
-// 例: [[0,1,2], [0,1,3], [1,2,4]..] は 
-// inputPoints[0], inputPoints[1], inputPoints[2] が三角形を構成する。
-// …以下、同様
-function DelaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin) {
-
-	var pos = numeric.clone(inputPoints);	// 点の数 x 2(x,y)
-	var dPos = [];	// 動的に変わる点
-	var tri = [];	// 三角形の数 x 3(三角形頂点の点番号)
-
-	// すべての点を内包する
-	// 大きい三角形(superTriangle)の頂点を追加
-	// 下の点, 上の点1, 上の点2の順
-	dPos.push([(xmax+xmin)*0.5, ymin-(xmax-xmin)*0.5*1.73205080757]);
-	dPos.push([(xmax+xmin)*0.5-(xmax-xmin)*0.5-(ymax-ymin)/1.73205080757, ymax]);
-	dPos.push([(xmax+xmin)*0.5+(xmax-xmin)*0.5+(ymax-ymin)/1.73205080757, ymax]);
-	tri.push([0, 1, 2]);
-
-	// すべての入力点が追加されるまで実行
-	for(var step=0; step<pos.length; ++step) {
-
-		// 新しい入力点を追加
-		p = pos[step];
-		dPos.push(p);
-
-		// 入力点を外接円に内包する三角形を探す
-		// その三角形は削除対象として格納される
-		// このリストは値が降順になるように格納
-		// 注意：総当たりで調べている。非効率！
-		var removeTri=[];
-		for(var i=0; i<tri.length; i++) {
-			var c=new Circumcircle(
-							dPos[tri[i][0]],
-							dPos[tri[i][1]],
-							dPos[tri[i][2]]
-						);
-			var distVec=numeric.sub(c.p, p);
-			var dist=numeric.norm2(distVec);
-			if(dist<c.rad) {
-				removeTri.unshift(i);
-			}
-		}
-
-		// removeTriに含まれる三角形を削除してできる
-		// 多角形の頂点を抽出する
-		var pointsDupricated = [];
-		for(var i=0; i<removeTri.length; i++) {
-			for(var j=0; j<3; j++) {
-				pointsDupricated.push(tri[removeTri[i]][j]);
-			}
-		}
-		var points = pointsDupricated.filter(function (x, i, self) {
-			return self.indexOf(x)===i;
-		});
-
-		// removeTriリストの三角形をtriから削除する
-		for(var i=0; i<removeTri.length; ++i) {
-			tri.splice(removeTri[i], 1);
-		}
-
-		// 多角形の頂点を反時計回りに並べ替え
-		points.sort(
-			function (val1, val2) {
-				th1=Math.atan2(dPos[val1][1]-p[1], dPos[val1][0]-p[0]);
-				th2=Math.atan2(dPos[val2][1]-p[1], dPos[val2][0]-p[0]);
-				return th2-th1;
-			}
-		);
-
-		// 入力点と多角形の辺で構成される三角形を追加
-		for(var i=0; i<points.length; i++) {
-			var newTri=[points[i], points[(i+1)%points.length], dPos.length-1];
-			tri.push(newTri);
-		}
-	}
-
-	// superTriangleの頂点(0,1,2番)を含む三角形を探して削除
-	removeTri = [];
-	for(var i=0; i<tri.length; ++i) {
-		for(var j=0; j<3; ++j) {
-			if(tri[i][j]==0||tri[i][j]==1||tri[i][j]==2) {
-				removeTri.unshift(i);
+// ローソンの探査法
+// DelauneyTriangleのプロパティとの依存性なし
+DelauneyTriangle.lawsonTriangleDetection=function (points, head, newPoint) {
+	// head から順にローソンのアルゴリズムを適用していく
+	var triTmp=head;
+	var edge=0;
+	var vEdge, vPt;
+	var isPointInner=false;
+	var edgeTmp;
+	while(1) {
+		isPointInner=true;
+		for(var i=0; i<3; ++i) {
+			vPt=numeric.sub(newPoint, points[triTmp.vertexID[edge]]);
+			vEdge=numeric.sub(points[triTmp.vertexID[(edge+1)%3]], points[triTmp.vertexID[edge]]);
+			// newPointが辺ベクトルの右側にあれば右隣りの三角形に移る
+			if(vPt[0]*vEdge[1]-vPt[1]*vEdge[0]>0) {
+				edgeTmp=triTmp.edgeIDinAdjacent[edge];
+				triTmp=triTmp.adjacent[edge];
+				edge=(edgeTmp+1)%3
+				isPointInner=false;
+				if(triTmp==null) {
+					alert("Triangle search failed.");
+				}
 				break;
 			}
+			edge=(edge+1)%3;
+		}
+		if(isPointInner) {
+			return triTmp;
 		}
 	}
-	for(var i=0; i<removeTri.length; ++i) {
-		tri.splice(removeTri[i],1);
-	}
-
-	// superTriangleの頂点を削除してtriに格納されているインデックスを-3する
-	// dPos.splice(0, 3); とすると dPos == inputPoints となる
-	for(var i=0; i<tri.length; ++i) {
-		for(var j=0; j<3; ++j) {
-			tri[i][j]-=3;
-		}
-	}
-
-	return tri;
 }
+
 
 
 // 外接円クラス
