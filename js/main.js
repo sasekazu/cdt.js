@@ -15,15 +15,14 @@ function initEvents(canvas) {
 
 	var canvasWidth=canvas.width();
 	var canvasHeight=canvas.height();
-	var clickPoint=[];
 
+	var inputPoints=[];	// 入力頂点
 	var points=[];	// 頂点の座標群
 	var head=[];	// DelaunayTriangleクラスのインスタンス配列
+	var constraint=[];	// 拘束辺
 
 	var selectPoint=null;
-	var clickState="up";
 
-	init();
 	draw();
 
 	// mouseクリック時のイベントコールバック設定
@@ -39,13 +38,39 @@ function initEvents(canvas) {
 			if(canvasY<0||canvasY>canvasHeight) {
 				return;
 			}
-			clickState="down";
-			clickPoint=[canvasX, canvasY];
-			lawson();
+			inputPoints.push([canvasX, canvasY]);
+			if(inputPoints.length==2) {
+				constraint.push([0, 1]);
+				constraint.push([1, 0]);
+			} else if(inputPoints.length>2) {
+				constraint.pop();
+				constraint.push([inputPoints.length-2, inputPoints.length-1]);
+				constraint.push([inputPoints.length-1, 0]);
+			}
 			draw();
 		}
+			// 右クリック
+		else if(event.button==2) {
+			var canvasOffset=canvas.offset();
+			var canvasX=Math.floor(event.pageX-canvasOffset.left);
+			var canvasY=Math.floor(event.pageY-canvasOffset.top);
+			if(canvasX<0||canvasX>canvasWidth) {
+				return;
+			}
+			if(canvasY<0||canvasY>canvasHeight) {
+				return;
+			}
+			var clickPos=[canvasX, canvasY];
+			var dist;
+			for(var i=0; i<inputPoints.length; ++i) {
+				dist=numeric.norm2(numeric.sub(inputPoints[i], clickPos));
+				if(dist<10) {
+					selectPoint=i;
+					break;
+				}
+			}
+		}
 	});
-
 	// mouse移動時のイベントコールバック設定
 	canvas.mousemove(function (event) {
 		var canvasOffset=canvas.offset();
@@ -57,21 +82,15 @@ function initEvents(canvas) {
 		if(canvasY<0||canvasY>canvasHeight) {
 			return;
 		}
-		if(clickState=="down") {
-			for(var i=0; i<points.length; ++i) {
-				if(canvasX==points[i][0]&&canvasY==points[i][1]) {
-					return;
-				}
-			}
-			clickPoint=[canvasX, canvasY];
-			lawson();
+		if(selectPoint!=null) {
+			inputPoints[selectPoint]=[canvasX, canvasY];
 			draw();
 		}
 	});
-
 	// mouseクリック解除時のイベントコールバック設定
 	$(window).mouseup(function (event) {
-		clickState="up";
+		selectPoint=null;
+		draw();
 	});
 
 	$("input").click(function () {
@@ -80,31 +99,22 @@ function initEvents(canvas) {
 
 	// リセットボタン
 	$("#reset").click(function () {
-		init();
+		inputPoints=[];	
+		points=[];	
+		head=[];
+		constraint=[];
+		selectPoint=null;
 		draw();
 	});
 	
 	// 点群の生成と三角形分割
-	function init() {
-		// ランダムな点群を生成
-		points = generateRondomPoints(canvasWidth, canvasHeight, distMin, N);
-		// 三角形分割
-		var result=new DelaunayTriangulation(points, canvasHeight, 0, canvasWidth, 0);
-		head=result.head;
-		points=result.points;
-	}
-
-	function lawson() {
-		// ローソンの三角形探査
-		if(clickPoint.length!=0) {
-			var resultTri=DelaunayTriangle.lawsonTriangleDetection(points, head, clickPoint);
-			points.push(clickPoint);
-			resultTri.addPoint(points.length-1, points);
-		}
-	}
-
 	// レンダリングのリフレッシュを行う関数
 	function draw() {
+
+		// 三角形分割
+		var result=new delaunayTriangulation(inputPoints, canvasHeight, 0, canvasWidth, 0, constraint);
+		head=result.head;
+		points=result.points;
 
 		var context = canvas.get(0).getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -114,6 +124,17 @@ function initEvents(canvas) {
 			drawCircumcirclesFromHead(canvas, points, head);
 		}
 
+		// 拘束辺の描画
+		context.strokeStyle='lightgreen';
+		context.lineWidth=6;
+		for(var i=0; i<constraint.length; ++i) {
+			context.beginPath();
+			context.moveTo(inputPoints[constraint[i][0]][0], inputPoints[constraint[i][0]][1]);
+			context.lineTo(inputPoints[constraint[i][1]][0], inputPoints[constraint[i][1]][1]);
+			context.stroke();
+		}
+		context.lineWidth=1;
+
 		// 三角形の描画
 		context.strokeStyle='black';
 		drawTrianglesFromHead(canvas, points, head);
@@ -122,43 +143,12 @@ function initEvents(canvas) {
 		context.fillStyle='black';
 		drawPoints(canvas, points);
 
-		// クリックした点の描画
-		context.fillStyle='red';
-		context.beginPath();
-		context.arc(clickPoint[0], clickPoint[1], 3, 0, Math.PI*2, true);
-		context.fill();
-
 	}
-}
-
-// ランダムな点群を生成する
-function generateRondomPoints(width, height, distMin, N){
-	var randx, randy;
-	var dist, isTooClose;
-	var points=[];
-	for(var i=0; i<N; ++i) {
-		for(var j=0; j<10; ++j) {
-			randx=0.8*width*(Math.random()-0.5)+0.5*width;
-			randy=0.8*height*(Math.random()-0.5)+0.5*height;
-			isTooClose=false;
-			for(var j=0; j<points.length; ++j) {
-				dist=(randx-points[j][0])*(randx-points[j][0])+(randy-points[j][1])*(randy-points[j][1]);
-				if(dist<distMin*distMin) {
-					isTooClose=true;
-					break;
-				}
-			}
-			if(!isTooClose) {
-				points.push([randx, randy]);
-				break;
-			}
-		}
-	}
-	return points;
 }
 
 
 // 以下、描画関係
+
 
 function drawPoints(canvas, points) {
 	var context=canvas.get(0).getContext("2d");
@@ -167,7 +157,7 @@ function drawPoints(canvas, points) {
 	context.setTransform(1, 0, 0, 1, 0, 0);
 	for(var i=0; i<points.length; ++i) {
 		context.beginPath();
-		context.arc(points[i][0], points[i][1], 2, 0, 2*Math.PI, true);
+		context.arc(points[i][0], points[i][1], 3, 0, 2*Math.PI, true);
 		context.fill();
 	}
 }
@@ -216,7 +206,7 @@ function drawCircumcirclesFromHead(canvas, points, head) {
 	for(var tri=head; tri!=null; tri=tri.next) {
 		context.fillStyle=colors[i%colors.length];
 		context.beginPath();
-		cir=new Circumcircle(points[tri.vertexID[0]], points[tri.vertexID[1]], points[tri.vertexID[2]]);
+		cir=new DelaunayTriangle.Circumcircle(points[tri.vertexID[0]], points[tri.vertexID[1]], points[tri.vertexID[2]]);
 		context.arc(cir.p[0], cir.p[1], cir.rad, 0, Math.PI*2, true);
 		context.fill();
 		++i;

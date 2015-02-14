@@ -2,14 +2,18 @@
 /// <reference path="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" />
 /// <reference path="numeric-1.2.6.min.js" />
 
+
 // ドロネー三角形分割関数
-// 引数1 inputPoints: 入力点の座標 [[x1,y1],[x2,y2],....]
-// 引数2,3,4,5 ymax, ymin, xmax, xmin: 入力点が含まれる領域の最大・最小座標
+// 引数 inputPoints: 入力点の座標 [[x1,y1],[x2,y2],....]
+// 引数 ymax, ymin, xmax, xmin: 入力点が含まれる領域の最大・最小座標
+// 引数 constraint: 拘束する辺．
+//                  入力座標のインデックスで指定する [[pointID1, pointID2],.... ] 
+//                  ※省略可能 undefinedで渡されたら拘束なしとみなす
 // 返り値：
 //    オブジェクト
 //    points: 点の座標リスト (inputPointsに加えて点群を内包する大きい三角形の頂点を含む)
 //    head: ドロネー三角形クラスの連結リストの先頭への参照
-function DelaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin) {
+function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) {
 
 	var points=numeric.clone(inputPoints);	// 点の数 x 2(x,y)
 	var tri=[];	// 三角形の数 x 3(三角形頂点の点番号)
@@ -17,18 +21,19 @@ function DelaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin) {
 	// すべての点を内包する
 	// 大きい三角形(superTriangle)の頂点を追加
 	// 下の点, 上の点1, 上の点2の順
-	points.unshift([(xmax+xmin)*0.5, ymin-(xmax-xmin)*0.5*1.73205080757]);
-	points.unshift([(xmax+xmin)*0.5-(xmax-xmin)*0.5-(ymax-ymin)/1.73205080757, ymax]);
-	points.unshift([(xmax+xmin)*0.5+(xmax-xmin)*0.5+(ymax-ymin)/1.73205080757, ymax]);
-	var head=new DelaunayTriangle(points, [0, 1, 2]);
+	points.push([(xmax+xmin)*0.5, ymin-(xmax-xmin)*0.5*1.73205080757]);
+	points.push([(xmax+xmin)*0.5-(xmax-xmin)*0.5-(ymax-ymin)/1.73205080757, ymax]);
+	points.push([(xmax+xmin)*0.5+(xmax-xmin)*0.5+(ymax-ymin)/1.73205080757, ymax]);
+	var l=points.length;
+	var head=new DelaunayTriangle(points, [l-3, l-2, l-1]);
 
 	// 点を逐次追加する
 	// まず点を内包する三角形をローソン探査法で探し
 	// その後、スワッピングアルゴリズムを用いて分割
 	var resultTri=head;
-	for(var i=3; i<points.length; ++i) {
+	for(var i=0; i<points.length-3; ++i) {
 		resultTri=DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
-		resultTri.addPoint(i, points);
+		resultTri.addPoint(i, points, constraint);
 	}
 
 	return { points: points, head: head };
@@ -80,7 +85,10 @@ DelaunayTriangle.prototype.cloneProperties=function () {
 }
 
 // 新しい点を追加して三角形を分割する
-DelaunayTriangle.prototype.addPoint = function (newPointID, points) {
+// 引数 newPointID: 追加点のID, pointsの中の何番目の点に該当するかを指す
+// 引数 points: 点群の座標 [[x1,y1],[x2,y2],.....]
+// 引数 constraint: 拘束する辺．入力座標のインデックスで指定する [[pointID1, pointID2],.... ]
+DelaunayTriangle.prototype.addPoint = function (newPointID, points, constraint) {
 
 	// STEP1: 
 	// 追加点pを内包する三角形Tを三分割する
@@ -150,19 +158,22 @@ DelaunayTriangle.prototype.addPoint = function (newPointID, points) {
 	stack.push(newTri[1]);
 	stack.push(newTri[2]);
 	while(stack.length!=0) {
-		this.swapping(newPointID, points, stack);
+		DelaunayTriangle.swapping(stack, newPointID, points, constraint);
 	}
 
 }
 
 // スワッピングアルゴリズム
-// ※thisのプロパティとの依存性なし
-// 引数 newPointID: 追加点のID, pointsの中の何番目の点に該当するかを指す
-// 引数 points: 点群の座標 [[x1,y1],[x2,y2],.....]
+// ※DelaunayTriangleのプロパティとの依存性なし
 // 引数 stack: スワッピングアルゴリズムを適用する三角形の参照を格納したスタック
 //             後ろから取り出してスワップ処理し，スワップが生じた場合、
 //             スワップで生じた2つの三角形を後ろに追加する
-DelaunayTriangle.prototype.swapping=function (newPointID, points, stack) {
+// 引数 newPointID: 追加点のID, pointsの中の何番目の点に該当するかを指す
+// 引数 points: 点群の座標 [[x1,y1],[x2,y2],.....]
+// 引数 constraint: 拘束する辺．
+//                  入力座標のインデックスで指定する [[pointID1, pointID2],.... ] 
+//                  ※省略可能 undefinedで渡されたら拘束なしとみなす
+DelaunayTriangle.swapping=function (stack, newPointID, points, constraint) {
 
 	var tri=stack.pop();	// 対象三角形の参照
 	var newPtTri;	// newPointのtriにおけるローカルID
@@ -180,6 +191,8 @@ DelaunayTriangle.prototype.swapping=function (newPointID, points, stack) {
 			break;
 		}
 	}
+
+	// 隣接する三角形を取得
 	adjTri=tri.adjacent[oppEdgeTri];
 	if(adjTri==null) {
 		return;
@@ -188,22 +201,36 @@ DelaunayTriangle.prototype.swapping=function (newPointID, points, stack) {
 	farPtAdj=(oppEdgeAdj+2)%3;
 
 
-	var swapFlag=false;
+	// 拘束が引数で与えられなければ空arrayで初期化
+	if(constraint==undefined || constraint==null) {
+		constraint=[];
+	}
+	// 対辺が拘束辺ならスワップせず終了
+	var p1, p2, c1, c2;
+	p1=tri.vertexID[oppEdgeTri];
+	p2=tri.vertexID[(oppEdgeTri+1)%3];
+	for(var i=0; i<constraint.length; ++i) {
+		c1=constraint[i][0];
+		c2=constraint[i][1];
+		if((p1==c1&&p2==c2)||(p1==c2&&p2==c1)) {
+			return;
+		}
+	}
 
 	// newPoint が adjTri の外接円に含まれればスワップ
-	var c=new Circumcircle(
+	var c=new DelaunayTriangle.Circumcircle(
 				points[adjTri.vertexID[0]],
 				points[adjTri.vertexID[1]],
 				points[adjTri.vertexID[2]]
 			);
-	swapFlag = (numeric.norm2(numeric.sub(c.p, points[newPointID]))<c.rad);
+	var swapFlag=(numeric.norm2(numeric.sub(c.p, points[newPointID]))<c.rad);
 
 	// FEMのための要素自動分割」では、以下の3行のようにして
 	// 対辺がvFarより短いときスワップを行っているが、
 	// ドロネー三角分割にならないことがあるため外接円を使って判定する
 	//vOpp=numeric.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
 	//vFar=numeric.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
-	//swapFlag=(numeric.norm2(vOpp)>numeric.norm2(vFar));
+	//var swapFlag=(numeric.norm2(vOpp)>numeric.norm2(vFar));
 
 	if(swapFlag) {
 		// vertexID の更新
@@ -241,7 +268,7 @@ DelaunayTriangle.prototype.swapping=function (newPointID, points, stack) {
 
 
 // ローソンの探査法
-// DelaunayTriangleのプロパティとの依存性なし
+// ※DelaunayTriangleのプロパティとの依存性なし
 DelaunayTriangle.lawsonTriangleDetection=function (points, head, newPoint) {
 	// head から順にローソンのアルゴリズムを適用していく
 	var triTmp=head;
@@ -276,7 +303,7 @@ DelaunayTriangle.lawsonTriangleDetection=function (points, head, newPoint) {
 
 
 // 外接円クラス
-function Circumcircle(p1, p2, p3) {
+DelaunayTriangle.Circumcircle=function(p1, p2, p3) {
 	var a=numeric.norm2(numeric.sub(p2, p3));
 	var b=numeric.norm2(numeric.sub(p3, p1));
 	var c=numeric.norm2(numeric.sub(p1, p2));
