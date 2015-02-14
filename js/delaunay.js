@@ -20,7 +20,19 @@ DelauneyTriangle.prototype.push=function (next) {
 	next.prev=this;
 }
 
+
+// 新しい点を追加して三角形を分割する
+// このメソッド実行後、このインスタンス(this)は
+// 使われないので、GCに開放してほしい。
+// 実行後にthisはほかのインスタンスから参照されない
+// はずだが、確認はしていない。
 DelauneyTriangle.prototype.deleteAndAdd = function (newPointID, points) {
+
+	// STEP1: 
+	// 追加点pを内包する三角形Tを三分割する
+	// Tの頂点をp1,p2,p3とすると
+	// 3つの新しい三角形 (p,p1,p2),(p,p2,p3),(p,p3,p1) が
+	// Tを削除した後に追加される
 
 	// 新しい三角形オブジェクトの作成
 	var indices;
@@ -65,65 +77,87 @@ DelauneyTriangle.prototype.deleteAndAdd = function (newPointID, points) {
 		}
 	}
 	
-	swapping(newPointID, newTri[0], points);
-	swapping(newPointID, newTri[1], points);
-	swapping(newPointID, newTri[2], points);
+	// STEP2:
+	// スワッピングアルゴリズム（フリップとも呼ばれる）
+	// 新しい三角形をスタックに格納
+	// スタックが空になるまでスワッピングアルゴリズムを適用
 
-	// スワッピングアルゴリズム
-	function swapping(newPointID, tri, points){
-		var newPtTri;	// newPointのtriにおけるローカルID
-		var oppEdgeTri;	// newPointの対辺のtriにおけるローカルID, opp: opposite
-		var adjTri;		// newPointの対辺で隣接する三角形
-		var oppEdgeAdj;	// 対辺のadjTriにおけるローカルID
-		var farPtAdj;	// triと共有しないadjTriの頂点のローカルID
-		var vOpp;		// 対辺のベクトル
-		var vFar;		// newPointとfarPointの相対ベクトル
-		for(var i = 0; i < 3; ++i) {
-			if(tri.vertexID[i] == newPointID) {
-				newPtTri=i;
-				oppEdgeTri=(newPtTri+1)%3
-				break;
-			}
-		}
-		adjTri = tri.adjacent[oppEdgeTri];
-		if(adjTri==null) {
-			return;
-		}
-		oppEdgeAdj = tri.edgeIDinAdjacent[oppEdgeTri];
-		farPtAdj = (oppEdgeAdj+2)%3;
-		vOpp = numeric.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
-		vFar = numeric.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
-		// 対辺がvFarより短いときスワップ
-		if(numeric.norm2(vOpp) > numeric.norm2(vFar)) {
-			// vertexID の更新
-			tri.vertexID[(newPtTri+2)%3] = adjTri.vertexID[farPtAdj];
-			adjTri.vertexID[(farPtAdj+2)%3] = tri.vertexID[newPtTri];
-			// adjacent の更新
-			tri.adjacent[oppEdgeTri]=adjTri.adjacent[(oppEdgeAdj+1)%3];
-			adjTri.adjacent[oppEdgeAdj]=tri.adjacent[(oppEdgeTri+1)%3];
-			tri.adjacent[(oppEdgeTri+1)%3]=adjTri;
-			adjTri.adjacent[(oppEdgeAdj+1)%3]=tri;
-			if(tri.adjacent[oppEdgeTri]!=null) {
-				tri.adjacent[oppEdgeTri].adjacent[adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3]]=tri;
-			}
-			if(adjTri.adjacent[oppEdgeAdj]!=null) {
-				adjTri.adjacent[oppEdgeAdj].adjacent[tri.edgeIDinAdjacent[(oppEdgeTri+1)%3]]=adjTri;
-			}
-			// edgeIDinAdjacent の更新
-			tri.edgeIDinAdjacent[oppEdgeTri]=adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3];
-			adjTri.edgeIDinAdjacent[oppEdgeAdj]=tri.edgeIDinAdjacent[(oppEdgeTri+1)%3];
-			tri.edgeIDinAdjacent[(oppEdgeTri+1)%3]=(oppEdgeAdj+1)%3;
-			adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3]=(oppEdgeTri+1)%3;
-			if(tri.adjacent[oppEdgeTri]!=null) {
-				tri.adjacent[oppEdgeTri].edgeIDinAdjacent[tri.edgeIDinAdjacent[oppEdgeTri]]=oppEdgeTri;
-			}
-			if(adjTri.adjacent[oppEdgeAdj]!=null) {
-				adjTri.adjacent[oppEdgeAdj].edgeIDinAdjacent[adjTri.edgeIDinAdjacent[oppEdgeAdj]]=oppEdgeAdj;
-			}
-		}
+	var stack=[];	// Last In Last Out
+	stack.push(newTri[0]);
+	stack.push(newTri[1]);
+	stack.push(newTri[2]);
+	while(stack.length!=0) {
+		this.swapping(newPointID, points, stack);
 	}
+
 }
 
+// スワッピングアルゴリズム
+// ※thisのプロパティとの依存性なし
+// 引数 newPointID: 追加点のID, pointsの中の何番目の点に該当するかを指す
+// 引数 points: 点群の座標 [[x1,y1],[x2,y2],.....]
+// 引数 stack: スワッピングアルゴリズムを適用する三角形の参照を格納したスタック
+//             後ろから取り出してスワップ処理し，スワップが生じた場合、
+//             スワップで生じた2つの三角形を後ろに追加する
+DelauneyTriangle.prototype.swapping=function (newPointID, points, stack) {
+
+	var tri=stack.pop();	// 対象三角形の参照
+	var newPtTri;	// newPointのtriにおけるローカルID
+	var oppEdgeTri;	// newPointの対辺のtriにおけるローカルID, opp: opposite
+	var adjTri;		// newPointの対辺で隣接する三角形
+	var oppEdgeAdj;	// 対辺のadjTriにおけるローカルID
+	var farPtAdj;	// triと共有しないadjTriの頂点のローカルID
+	var vOpp;		// 対辺のベクトル
+	var vFar;		// newPointとfarPointの相対ベクトル
+
+	for(var i=0; i<3; ++i) {
+		if(tri.vertexID[i]==newPointID) {
+			newPtTri=i;
+			oppEdgeTri=(newPtTri+1)%3
+			break;
+		}
+	}
+	adjTri=tri.adjacent[oppEdgeTri];
+	if(adjTri==null) {
+		return;
+	}
+	oppEdgeAdj=tri.edgeIDinAdjacent[oppEdgeTri];
+	farPtAdj=(oppEdgeAdj+2)%3;
+	vOpp=numeric.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
+	vFar=numeric.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
+	// 対辺がvFarより短いときスワップ
+	if(numeric.norm2(vOpp)>numeric.norm2(vFar)) {
+		// vertexID の更新
+		tri.vertexID[(newPtTri+2)%3]=adjTri.vertexID[farPtAdj];
+		adjTri.vertexID[(farPtAdj+2)%3]=tri.vertexID[newPtTri];
+		// adjacent の更新
+		tri.adjacent[oppEdgeTri]=adjTri.adjacent[(oppEdgeAdj+1)%3];
+		adjTri.adjacent[oppEdgeAdj]=tri.adjacent[(oppEdgeTri+1)%3];
+		tri.adjacent[(oppEdgeTri+1)%3]=adjTri;
+		adjTri.adjacent[(oppEdgeAdj+1)%3]=tri;
+		if(tri.adjacent[oppEdgeTri]!=null) {
+			tri.adjacent[oppEdgeTri].adjacent[adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3]]=tri;
+		}
+		if(adjTri.adjacent[oppEdgeAdj]!=null) {
+			adjTri.adjacent[oppEdgeAdj].adjacent[tri.edgeIDinAdjacent[(oppEdgeTri+1)%3]]=adjTri;
+		}
+		// edgeIDinAdjacent の更新
+		tri.edgeIDinAdjacent[oppEdgeTri]=adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3];
+		adjTri.edgeIDinAdjacent[oppEdgeAdj]=tri.edgeIDinAdjacent[(oppEdgeTri+1)%3];
+		tri.edgeIDinAdjacent[(oppEdgeTri+1)%3]=(oppEdgeAdj+1)%3;
+		adjTri.edgeIDinAdjacent[(oppEdgeAdj+1)%3]=(oppEdgeTri+1)%3;
+		if(tri.adjacent[oppEdgeTri]!=null) {
+			tri.adjacent[oppEdgeTri].edgeIDinAdjacent[tri.edgeIDinAdjacent[oppEdgeTri]]=oppEdgeTri;
+		}
+		if(adjTri.adjacent[oppEdgeAdj]!=null) {
+			adjTri.adjacent[oppEdgeAdj].edgeIDinAdjacent[adjTri.edgeIDinAdjacent[oppEdgeAdj]]=oppEdgeAdj;
+		}
+
+		// stackに新しいスワップ対象を追加
+		stack.push(tri);
+		stack.push(adjTri);
+	}
+}
 
 DelauneyTriangle.prototype.init = function(points){
 	var v1=numeric.sub(points[this.vertexID[1]], points[this.vertexID[0]]);

@@ -58,6 +58,11 @@ function initEvents(canvas) {
 			return;
 		}
 		if(clickState=="down") {
+			for(var i=0; i<points.length; ++i) {
+				if(canvasX==points[i][0]&&canvasY==points[i][1]) {
+					return;
+				}
+			}
 			clickPoint=[canvasX, canvasY];
 			lawson();
 			draw();
@@ -124,8 +129,8 @@ function initEvents(canvas) {
 		if($('#colorCheckBox').is(':checked')) {
 			fillTrianglesFromHead(canvas, points, head);
 		}
-		context.strokeStyle='gray';
-		drawTriangles(canvas, points, tri);
+		//context.strokeStyle='gray';
+		//drawTriangles(canvas, points, tri);
 		context.strokeStyle='black';
 		drawTrianglesFromHead(canvas, points, head);
 		fillAdjacents(canvas, points, focusTri);
