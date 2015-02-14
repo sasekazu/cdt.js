@@ -18,7 +18,7 @@ function initEvents(canvas) {
 	var clickPoint=[];
 
 	var points=[];	// 頂点の座標群
-	var head=[];	// DelauneyTriangleクラスのインスタンス配列
+	var head=[];	// DelaunayTriangleクラスのインスタンス配列
 
 	var selectPoint=null;
 	var clickState="up";
@@ -97,7 +97,7 @@ function initEvents(canvas) {
 	function lawson() {
 		// ローソンの三角形探査
 		if(clickPoint.length!=0) {
-			var resultTri=DelauneyTriangle.lawsonTriangleDetection(points, head, clickPoint);
+			var resultTri=DelaunayTriangle.lawsonTriangleDetection(points, head, clickPoint);
 			points.push(clickPoint);
 			resultTri.addPoint(points.length-1, points);
 		}
