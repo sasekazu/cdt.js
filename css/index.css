@@ -1,32 +1,11 @@
 
 *{
-	/* フルスクリーン用 */
-	/*
-	margin: 0px;
-	padding: 0px;
-	*/
-	/* 通常用 */
 	margin: 3px;
 	padding: 3px;
 }
 
-
-th{
-	text-align: left;
-	width: 12em;
-}
-
-.tx {
-	width: 5em;
-	height: 1.2em;
-}
-
-.optionDiv{
-	background-color : lightgray;
-}
-
-#discription{
-	width: 900px;
+#page{
+	width: 600px;
 	margin: 0 auto;
 }
 
