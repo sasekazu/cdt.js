@@ -6,8 +6,9 @@
 // ドロネー三角形分割関数
 // 引数 inputPoints: 入力点の座標 [[x1,y1],[x2,y2],....]
 // 引数 ymax, ymin, xmax, xmin: 入力点が含まれる領域の最大・最小座標
-// 引数 constraint: 拘束する辺．
-//                  入力座標のインデックスで指定する [[pointID1, pointID2],.... ] 
+// 引数 constraint: 閉境界を構成する点のＩＤ[pointID1, pointID2,.... ] 
+//                  ※閉境界であるため最後の要素は先頭の要素と一致するようにする
+//                    一致しない場合，先頭要素と最後の要素をつなぐ辺も拘束される．
 //                  ※省略可能 undefinedで渡されたら拘束なしとみなす
 // 返り値：
 //    オブジェクト
@@ -87,8 +88,8 @@ DelaunayTriangle.prototype.cloneProperties=function () {
 // 新しい点を追加して三角形を分割する
 // 引数 newPointID: 追加点のID, pointsの中の何番目の点に該当するかを指す
 // 引数 points: 点群の座標 [[x1,y1],[x2,y2],.....]
-// 引数 constraint: 拘束する辺．入力座標のインデックスで指定する [[pointID1, pointID2],.... ]
-DelaunayTriangle.prototype.addPoint = function (newPointID, points, constraint) {
+// 引数 constraint: 閉境界を構成する点のＩＤ[pointID1, pointID2,.... ] 
+DelaunayTriangle.prototype.addPoint=function (newPointID, points, constraint) {
 
 	// STEP1: 
 	// 追加点pを内包する三角形Tを三分割する
@@ -170,8 +171,7 @@ DelaunayTriangle.prototype.addPoint = function (newPointID, points, constraint) 
 //             スワップで生じた2つの三角形を後ろに追加する
 // 引数 newPointID: 追加点のID, pointsの中の何番目の点に該当するかを指す
 // 引数 points: 点群の座標 [[x1,y1],[x2,y2],.....]
-// 引数 constraint: 拘束する辺．
-//                  入力座標のインデックスで指定する [[pointID1, pointID2],.... ] 
+// 引数 constraint: 閉境界を構成する点のＩＤ[pointID1, pointID2,.... ] 
 //                  ※省略可能 undefinedで渡されたら拘束なしとみなす
 DelaunayTriangle.swapping=function (stack, newPointID, points, constraint) {
 
@@ -209,9 +209,13 @@ DelaunayTriangle.swapping=function (stack, newPointID, points, constraint) {
 	var p1, p2, c1, c2;
 	p1=tri.vertexID[oppEdgeTri];
 	p2=tri.vertexID[(oppEdgeTri+1)%3];
-	for(var i=0; i<constraint.length; ++i) {
-		c1=constraint[i][0];
-		c2=constraint[i][1];
+	var ctrn=numeric.clone(constraint);
+	if(ctrn[0]!=ctrn[ctrn.length=1]) {
+		ctrn.push(ctrn[0]);
+	}
+	for(var i=0; i<ctrn.length-1; ++i) {
+		c1=ctrn[i];
+		c2=ctrn[i+1];
 		if((p1==c1&&p2==c2)||(p1==c2&&p2==c1)) {
 			return;
 		}

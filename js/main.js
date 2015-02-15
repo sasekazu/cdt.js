@@ -40,12 +40,13 @@ function initEvents(canvas) {
 			}
 			inputPoints.push([canvasX, canvasY]);
 			if(inputPoints.length==2) {
-				constraint.push([0, 1]);
-				constraint.push([1, 0]);
+				constraint.push(0);
+				constraint.push(1);
+				constraint.push(0);
 			} else if(inputPoints.length>2) {
 				constraint.pop();
-				constraint.push([inputPoints.length-2, inputPoints.length-1]);
-				constraint.push([inputPoints.length-1, 0]);
+				constraint.push(inputPoints.length-1);
+				constraint.push(0);
 			}
 			draw();
 		}
@@ -127,12 +128,14 @@ function initEvents(canvas) {
 		// 拘束辺の描画
 		context.strokeStyle='lightgreen';
 		context.lineWidth=6;
-		for(var i=0; i<constraint.length; ++i) {
-			context.beginPath();
-			context.moveTo(inputPoints[constraint[i][0]][0], inputPoints[constraint[i][0]][1]);
-			context.lineTo(inputPoints[constraint[i][1]][0], inputPoints[constraint[i][1]][1]);
-			context.stroke();
+		context.beginPath();
+		if(constraint.length!=0) {
+			context.moveTo(inputPoints[constraint[0]][0], inputPoints[constraint[0]][1]);
 		}
+		for(var i=1; i<constraint.length; ++i) {
+			context.lineTo(inputPoints[constraint[i]][0], inputPoints[constraint[i]][1]);
+		}
+		context.stroke();
 		context.lineWidth=1;
 
 		// 三角形の描画
