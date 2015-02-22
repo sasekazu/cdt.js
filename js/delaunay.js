@@ -40,6 +40,17 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 		resultTri.addPoint(i, points, cst);
 	}
 
+	// 点から三角形へアクセスするためのデータ作成
+	var pointToTri=new Array(points.length);
+	for(var i=0; i<pointToTri.length; ++i) {
+		pointToTri[i]=[];
+	}
+	for(var tri=head; tri!=null; tri=tri.next) {
+		pointToTri[tri.vertexID[0]].push(tri);
+		pointToTri[tri.vertexID[1]].push(tri);
+		pointToTri[tri.vertexID[2]].push(tri);
+	}
+
 	// 辺と閉境界との交差を調べる
 	// 総当たりで
 	var crossConstraint=[];
@@ -50,12 +61,13 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 		edgePos[0]=points[cst[i]];
 		edgePos[1]=points[cst[i+1]];
 		isCross=false;
-		for(var tri=head; tri!=null; tri=tri.next) {
-			for(var j=0; j<3; ++j) {
-				triPos[j]=points[tri.vertexID[j]];
+		for(var j=0; j<pointToTri[cst[i]].length; ++j) {
+			var tri=pointToTri[cst[i]][j];
+			for(var k=0; k<3; ++k) {
+				triPos[k]=points[tri.vertexID[k]];
 			}
-			for(var j=0; j<3; ++j) {
-				if(delaunayTriangulation.isIntersect(edgePos, [triPos[j], triPos[(j+1)%3]])) {
+			for(var k=0; k<3; ++k) {
+				if(delaunayTriangulation.isIntersect(edgePos, [triPos[k], triPos[(k+1)%3]])) {
 					crossConstraint.push(i);
 					isCross=true;
 					break;
