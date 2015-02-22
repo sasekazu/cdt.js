@@ -17,7 +17,10 @@
 function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) {
 
 	var points=numeric.clone(inputPoints);	// 点の数 x 2(x,y)
-	var tri=[];	// 三角形の数 x 3(三角形頂点の点番号)
+	var cst=numeric.clone(constraint);		// 閉境界 cst[0]=cst[length-1] となるようにする
+	if(cst[0]!=cst[cst.length-1]) {
+		cst.push(cst[0]);
+	}
 
 	// すべての点を内包する
 	// 大きい三角形(superTriangle)の頂点を追加
@@ -34,10 +37,62 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 	var resultTri=head;
 	for(var i=0; i<points.length-3; ++i) {
 		resultTri=DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
-		resultTri.addPoint(i, points, constraint);
+		resultTri.addPoint(i, points, cst);
 	}
 
-	return { points: points, head: head };
+	// 辺と閉境界との交差を調べる
+	// 総当たりで
+	var crossConstraint=[];
+	var edgePos=[[0, 0], [0, 0]];	// 辺の始点・終点の座標 [[始点],[終点]]
+	var triPos=[[0, 0], [0, 0], [0, 0]];	// 三角形の頂点座標　[[頂点1],[頂点2],[頂点3]]
+	var isCross;
+	for(var i=0; i<cst.length-1; ++i) {
+		edgePos[0]=points[cst[i]];
+		edgePos[1]=points[cst[i+1]];
+		isCross=false;
+		for(var tri=head; tri!=null; tri=tri.next) {
+			for(var j=0; j<3; ++j) {
+				triPos[j]=points[tri.vertexID[j]];
+			}
+			for(var j=0; j<3; ++j) {
+				if(delaunayTriangulation.isIntersect(edgePos, [triPos[j], triPos[(j+1)%3]])) {
+					crossConstraint.push(i);
+					isCross=true;
+					break;
+				}
+			}
+			if(isCross) {
+				break;
+			}
+		}
+	}
+
+	// 交差を解消する
+
+	return { points: points, head: head, crossConstraint: crossConstraint };
+}
+
+// 線分の衝突
+// 参考: http://marupeke296.com/COL_2D_No10_SegmentAndSegment.html
+delaunayTriangulation.isIntersect = function(s1, s2) {
+	var v=numeric.sub(s2[0], s1[0]);
+	var v1=numeric.sub(s1[1], s1[0]);
+	var v2=numeric.sub(s2[1], s2[0]);
+	var crs_v1_v2=v1[0]*v2[1]-v1[1]*v2[0];
+	if(crs_v1_v2==0.0) {
+		return false	// 平行状態
+	}
+	var crs_v_v1=v[0]*v1[1]-v[1]*v1[0];
+	var crs_v_v2=v[0]*v2[1]-v[1]*v2[0];
+	var t1=crs_v_v2/crs_v1_v2;
+	var t2=crs_v_v1/crs_v1_v2;
+	var eps=0.00001;
+	// 1点のみを共有する場合は交差とみなさない
+	if(t1-eps<=0||t1+eps>=1||t2-eps<=0||t2+eps>=1) {
+		return false;	// 交差していない
+	} else {
+		return true;	// 交差している
+	}
 }
 
 
@@ -209,13 +264,9 @@ DelaunayTriangle.swapping=function (stack, newPointID, points, constraint) {
 	var p1, p2, c1, c2;
 	p1=tri.vertexID[oppEdgeTri];
 	p2=tri.vertexID[(oppEdgeTri+1)%3];
-	var ctrn=numeric.clone(constraint);
-	if(ctrn[0]!=ctrn[ctrn.length=1]) {
-		ctrn.push(ctrn[0]);
-	}
-	for(var i=0; i<ctrn.length-1; ++i) {
-		c1=ctrn[i];
-		c2=ctrn[i+1];
+	for(var i=0; i<constraint.length-1; ++i) {
+		c1=constraint[i];
+		c2=constraint[i+1];
 		if((p1==c1&&p2==c2)||(p1==c2&&p2==c1)) {
 			return;
 		}

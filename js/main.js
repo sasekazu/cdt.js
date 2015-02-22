@@ -138,6 +138,21 @@ function initEvents(canvas) {
 		context.stroke();
 		context.lineWidth=1;
 
+		// 拘束に失敗している辺の描画
+		context.strokeStyle='red';
+		context.lineWidth=6;
+		var crossCnst=result.crossConstraint;
+		for(var i=0; i<crossCnst.length; ++i) {
+			context.beginPath();
+			var crossID=crossCnst[i];
+			var pointID=constraint[crossID];
+			var pointID2=constraint[crossID+1];
+			context.moveTo(inputPoints[pointID][0], inputPoints[pointID][1]);
+			context.lineTo(inputPoints[pointID2][0], inputPoints[pointID2][1]);
+			context.stroke();
+		}
+		context.lineWidth=1;
+
 		// 三角形の描画
 		context.strokeStyle='black';
 		drawTrianglesFromHead(canvas, points, head);
