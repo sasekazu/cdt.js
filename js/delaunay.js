@@ -41,6 +41,79 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 	}
 
 	// 点から三角形へアクセスするためのデータ作成
+	var pointToTri=delaunayTriangulation.makePointToTri(points, head);
+
+	// 辺と閉境界との交差を調べる
+	var crossConstraint=[];
+	var crossTris=[];
+	var crossTri;
+	for(var i=0; i<cst.length-1; ++i) {
+		crossTri=delaunayTriangulation.isEdgeCross(points, pointToTri, cst, i);
+		if(crossTri!=null) {
+			crossConstraint.push(i);
+			crossTris.push(crossTri);
+		}
+	}
+
+
+	// 交差を解消する
+
+	return { points: points, head: head, crossConstraint: crossConstraint, crossTris: crossTris };
+}
+
+
+// i番目の拘束辺の交差判定
+delaunayTriangulation.isEdgeCross=function (points, pointToTri, cst, i) {
+	var edgePos=[points[cst[i]], points[cst[i+1]]];	// 辺の始点・終点の座標 [[始点],[終点]]
+	// 拘束辺の始点を含む三角形についてのループ
+	var tri;
+	var adjEdge=null;
+	for(var j=0; j<pointToTri[cst[i]].length; ++j) {
+		tri=pointToTri[cst[i]][j];
+		adjEdge=delaunayTriangulation.isTriAndEdgeCross(points, tri, cst, edgePos);
+		if(adjEdge!=null) {
+			break;
+		}
+	}
+	if(adjEdge==null) {
+		return null;
+	}
+
+	var crossTri=[tri];
+	var edgeIDinAdj;
+	for(; ;) {
+		edgeIDinAdj=tri.edgeIDinAdjacent[adjEdge];
+		tri=tri.adjacent[adjEdge];
+		crossTri.push(tri);
+		if(tri.vertexID[(edgeIDinAdj+2)%3]==cst[i+1]) {
+			break;
+		}
+		adjEdge=delaunayTriangulation.isTriAndEdgeCross(points, tri, cst, edgePos, edgeIDinAdj);
+	}
+	return crossTri;
+}
+
+
+// 三角形と辺の交差判定
+// 交差している場合, triのうちの交差している辺番号を返す
+// そうでない場合，nullを返す
+delaunayTriangulation.isTriAndEdgeCross=function (points, tri, cst, edgePos, except) {
+	var triPos=[[0, 0], [0, 0], [0, 0]];	// 三角形の頂点座標　[[頂点1],[頂点2],[頂点3]]
+	for(var k=0; k<3; ++k) {
+		triPos[k]=points[tri.vertexID[k]];
+	}
+	for(var k=0; k<3; ++k) {
+		if(delaunayTriangulation.isIntersect(edgePos, [triPos[k], triPos[(k+1)%3]])) {
+			if(k!=except) {
+				return k;
+			}
+		}
+	}
+	return null;
+}
+
+// pointToTriの作成
+delaunayTriangulation.makePointToTri = function(points, head){
 	var pointToTri=new Array(points.length);
 	for(var i=0; i<pointToTri.length; ++i) {
 		pointToTri[i]=[];
@@ -50,39 +123,9 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 		pointToTri[tri.vertexID[1]].push(tri);
 		pointToTri[tri.vertexID[2]].push(tri);
 	}
-
-	// 辺と閉境界との交差を調べる
-	// 総当たりで
-	var crossConstraint=[];
-	var edgePos=[[0, 0], [0, 0]];	// 辺の始点・終点の座標 [[始点],[終点]]
-	var triPos=[[0, 0], [0, 0], [0, 0]];	// 三角形の頂点座標　[[頂点1],[頂点2],[頂点3]]
-	var isCross;
-	for(var i=0; i<cst.length-1; ++i) {
-		edgePos[0]=points[cst[i]];
-		edgePos[1]=points[cst[i+1]];
-		isCross=false;
-		for(var j=0; j<pointToTri[cst[i]].length; ++j) {
-			var tri=pointToTri[cst[i]][j];
-			for(var k=0; k<3; ++k) {
-				triPos[k]=points[tri.vertexID[k]];
-			}
-			for(var k=0; k<3; ++k) {
-				if(delaunayTriangulation.isIntersect(edgePos, [triPos[k], triPos[(k+1)%3]])) {
-					crossConstraint.push(i);
-					isCross=true;
-					break;
-				}
-			}
-			if(isCross) {
-				break;
-			}
-		}
-	}
-
-	// 交差を解消する
-
-	return { points: points, head: head, crossConstraint: crossConstraint };
+	return pointToTri;
 }
+
 
 // 線分の衝突
 // 参考: http://marupeke296.com/COL_2D_No10_SegmentAndSegment.html
