@@ -113,7 +113,10 @@ function initEvents(canvas) {
 	function draw() {
 
 		// 三角形分割
-		var result=new delaunayTriangulation(inputPoints, canvasHeight, 0, canvasWidth, 0, constraint);
+		var result=delaunayTriangulation(inputPoints, constraint);
+		if(result==null) {
+			return;
+		}
 		head=result.head;
 		points=result.points;
 		crossTri=result.crossTris;

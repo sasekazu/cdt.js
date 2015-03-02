@@ -14,13 +14,21 @@
 //    オブジェクト
 //    points: 点の座標リスト (inputPointsに加えて点群を内包する大きい三角形の頂点を含む)
 //    head: ドロネー三角形クラスの連結リストの先頭への参照
-function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) {
+function delaunayTriangulation(inputPoints, constraint) {
+
+	// 入力点がない場合、強制終了
+	if(inputPoints.length<3) {
+		return null;
+	}
 
 	var points=numeric.clone(inputPoints);	// 点の数 x 2(x,y)
 	var cst=numeric.clone(constraint);		// 閉境界 cst[0]=cst[length-1] となるようにする
 	if(cst[0]!=cst[cst.length-1]) {
 		cst.push(cst[0]);
 	}
+
+
+	// STEP1: スーパートライアングルの作成
 
 	// すべての点を内包する
 	// 大きい三角形(superTriangle)の頂点を追加
@@ -31,7 +39,9 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 	var l=points.length;
 	var head=new DelaunayTriangle(points, [l-3, l-2, l-1]);
 
-	// 点を逐次追加する
+
+	// STEP2: 点の逐次追加
+
 	// まず点を内包する三角形をローソン探査法で探し
 	// その後、スワッピングアルゴリズムを用いて分割
 	var resultTri=head;
@@ -40,10 +50,11 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 		resultTri.addPoint(i, points, cst);
 	}
 
+
+	// STEP3: 辺と閉境界との交差判定
+
 	// 点から三角形へアクセスするためのデータ作成
 	var pointToTri=delaunayTriangulation.makePointToTri(points, head);
-
-	// 辺と閉境界との交差を調べる
 	var crossConstraint=[];
 //	var crossTris=[];
 	var crossTri=[];
@@ -58,13 +69,46 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 	}
 
 
-	// 交差を解消する
+	// STEP4: 交差解消
+
+	// 交差三角形を削除する
 	for(var j=0; j<crossTri.length; ++j) {
 		head=crossTri[j].remove(head);
 	}
+	// 新しい三角形を追加する
 
 
-	return { points: points, head: head, crossConstraint: crossConstraint, crossTris: [crossTri] };
+	// スーパートライアングルの削除
+	var isSuperVtx;
+	var tri=head;
+	while(1) {
+		if(tri==null) {
+			break;
+		}
+		isSuperVtx=false;
+		for(var i=0; i<3; ++i) {
+			for(var j=0; j<3; ++j) {
+				if(tri.vertexID[i]==points.length-1-j) {
+					isSuperVtx=true;
+					break;
+				}
+			}
+		}
+		if(isSuperVtx) {
+			if(tri===head) {
+				head=tri.remove(head);
+				tri=head;
+			} else {
+				var nextTmp=tri.next;
+				tri.remove(head);	// 削除対象がheadでないことは確実
+				tri=nextTmp;
+			}
+		} else {
+			tri=tri.next;
+		}
+	}
+
+	return { points: inputPoints, head: head, crossConstraint: crossConstraint, crossTris: [crossTri] };
 }
 
 
