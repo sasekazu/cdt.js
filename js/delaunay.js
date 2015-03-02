@@ -45,26 +45,26 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 
 	// 辺と閉境界との交差を調べる
 	var crossConstraint=[];
-	var crossTris=[];
-	var crossTri;
+//	var crossTris=[];
+	var crossTri=[];
 	for(var i=0; i<cst.length-1; ++i) {
 		crossTri=delaunayTriangulation.isEdgeCross(points, pointToTri, cst, i);
-		if(crossTri!=null) {
-			crossConstraint.push(i);
-			crossTris.push(crossTri);
+		if(crossTri.length>0) {
+			crossConstraint=[i];
+//			crossConstraint.push(i);
+//			crossTris.push(crossTri);
+			break;
 		}
 	}
 
 
 	// 交差を解消する
-	for(var i=0; i<crossTris.length; ++i) {
-		for(var j=0; j<crossTris[i].length; ++j) {
-			crossTris[i][j].remove();
-		}
+	for(var j=0; j<crossTri.length; ++j) {
+		crossTri[j].remove();
 	}
 
 
-	return { points: points, head: head, crossConstraint: crossConstraint, crossTris: crossTris };
+	return { points: points, head: head, crossConstraint: crossConstraint, crossTris: [crossTri] };
 }
 
 
@@ -82,7 +82,7 @@ delaunayTriangulation.isEdgeCross=function (points, pointToTri, cst, i) {
 		}
 	}
 	if(adjEdge==null) {
-		return null;
+		return [];
 	}
 
 	var crossTri=[tri];
@@ -248,6 +248,9 @@ DelaunayTriangle.prototype.cloneProperties=function () {
 // 連結リストでは前後の三角形を連結させる
 // 連結リストの次の三角形への参照を返す
 DelaunayTriangle.prototype.remove=function () {
+	if(this.adjacent==null) {
+		return null;
+	}
 	for(var i=0; i<3; ++i) {
 		if(this.adjacent[i]!=null) {
 			this.adjacent[i].adjacent[this.edgeIDinAdjacent[i]]=null;
@@ -255,11 +258,17 @@ DelaunayTriangle.prototype.remove=function () {
 	}
 	this.edgeIDinAdjacent=[];
 	this.adjacent=null;
-	this.next.prev=this.prev;
-	this.prev.next=this.next;
+	if(this.next!=null) {
+		this.next.prev=this.prev;
+	}
+	if(this.prev!=null) {
+		this.prev.next=this.next;
+	}
 	var next=this.next;
+	if(this.prev!=null) {
+		this.next=null;
+	}
 	this.prev=null;
-	this.next=null;
 	return next;
 }
 

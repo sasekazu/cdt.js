@@ -126,19 +126,6 @@ function initEvents(canvas) {
 			drawCircumcirclesFromHead(canvas, points, head);
 		}
 
-		// 拘束辺の描画
-		context.strokeStyle='lightgreen';
-		context.lineWidth=6;
-		context.beginPath();
-		if(constraint.length!=0) {
-			context.moveTo(inputPoints[constraint[0]][0], inputPoints[constraint[0]][1]);
-		}
-		for(var i=1; i<constraint.length; ++i) {
-			context.lineTo(inputPoints[constraint[i]][0], inputPoints[constraint[i]][1]);
-		}
-		context.stroke();
-		context.lineWidth=1;
-
 
 		// 拘束辺と交差している三角形の描画
 		context.fillStyle='pink';
@@ -152,7 +139,20 @@ function initEvents(canvas) {
 				context.fill();
 			}
 		}
-		
+
+		// 拘束辺の描画
+		context.strokeStyle='lightgreen';
+		context.lineWidth=6;
+		context.beginPath();
+		if(constraint.length!=0) {
+			context.moveTo(inputPoints[constraint[0]][0], inputPoints[constraint[0]][1]);
+		}
+		for(var i=1; i<constraint.length; ++i) {
+			context.lineTo(inputPoints[constraint[i]][0], inputPoints[constraint[i]][1]);
+		}
+		context.stroke();
+		context.lineWidth=1;
+
 
 		// 拘束に失敗している辺の描画
 		context.strokeStyle='red';
