@@ -79,6 +79,18 @@ function delaunayTriangulation(inputPoints, constraint) {
 
 
 	// スーパートライアングルの削除
+	head=delaunayTriangulation.removeSuperTriangle(head, points);
+
+	// 三角形接続リストの作成
+	var conn=[];
+	for(var tri=head; tri!=null; tri=tri.next) {
+		conn.push(tri.vertexID);
+	}
+
+	return { points: inputPoints, head: head, crossConstraint: crossConstraint, crossTris: [crossTri], connectivity: conn };
+}
+
+delaunayTriangulation.removeSuperTriangle=function(head, points) {
 	var isSuperVtx;
 	var tri=head;
 	while(1) {
@@ -107,8 +119,7 @@ function delaunayTriangulation(inputPoints, constraint) {
 			tri=tri.next;
 		}
 	}
-
-	return { points: inputPoints, head: head, crossConstraint: crossConstraint, crossTris: [crossTri] };
+	return head;
 }
 
 

@@ -112,17 +112,22 @@ function initEvents(canvas) {
 	// レンダリングのリフレッシュを行う関数
 	function draw() {
 
+		var context=canvas.get(0).getContext("2d");
+		context.clearRect(0, 0, canvasWidth, canvasHeight);
+
 		// 三角形分割
 		var result=delaunayTriangulation(inputPoints, constraint);
 		if(result==null) {
+			// 点の描画
+			context.fillStyle='black';
+			drawPoints(canvas, inputPoints);
 			return;
 		}
 		head=result.head;
 		points=result.points;
 		crossTri=result.crossTris;
+		conn=result.connectivity;
 
-		var context = canvas.get(0).getContext("2d");
-		context.clearRect(0, 0, canvasWidth, canvasHeight);
 
 		// 外接円の描画
 		if($('#gaisetuenCheckBox').is(':checked')) {
@@ -186,7 +191,15 @@ function initEvents(canvas) {
 
 		// 三角形の描画
 		context.strokeStyle='black';
-		drawTrianglesFromHead(canvas, points, head);
+//		drawTrianglesFromHead(canvas, points, head);
+		for(var i=0; i<conn.length; ++i) {
+			context.beginPath();
+			context.moveTo(points[conn[i][0]][0], points[conn[i][0]][1]);
+			context.lineTo(points[conn[i][1]][0], points[conn[i][1]][1]);
+			context.lineTo(points[conn[i][2]][0], points[conn[i][2]][1]);
+			context.lineTo(points[conn[i][0]][0], points[conn[i][0]][1]);
+			context.stroke();
+		}
 
 		// 点の描画
 		context.fillStyle='black';
