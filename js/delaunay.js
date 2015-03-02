@@ -25,9 +25,10 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 	// すべての点を内包する
 	// 大きい三角形(superTriangle)の頂点を追加
 	// 下の点, 上の点1, 上の点2の順
-	points.push([(xmax+xmin)*0.5, ymin-(xmax-xmin)*0.5*1.73205080757]);
-	points.push([(xmax+xmin)*0.5-(xmax-xmin)*0.5-(ymax-ymin)/1.73205080757, ymax]);
-	points.push([(xmax+xmin)*0.5+(xmax-xmin)*0.5+(ymax-ymin)/1.73205080757, ymax]);
+	var superTri=delaunayTriangulation.getSuperTriangle(points);
+	points.push(superTri[0]);
+	points.push(superTri[1]);
+	points.push(superTri[2]);
 	var l=points.length;
 	var head=new DelaunayTriangle(points, [l-3, l-2, l-1]);
 
@@ -57,6 +58,8 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 
 
 	// 交差を解消する
+
+
 
 	return { points: points, head: head, crossConstraint: crossConstraint, crossTris: crossTris };
 }
@@ -148,6 +151,47 @@ delaunayTriangulation.isIntersect = function(s1, s2) {
 	} else {
 		return true;	// 交差している
 	}
+}
+
+delaunayTriangulation.getSuperTriangle=function (points) {
+	if(points.length==0) {
+		return [[0, 0], [0, 0], [0, 0]];
+	}
+	// AABBを作成
+	var ymin=points[0][1];
+	var ymax=points[0][1];
+	var xmax=points[0][0];
+	var xmin=points[0][0];
+	for(var i=1; i<points.length; ++i) {
+		if(xmin>points[i][0]) {
+			xmin=points[i][0];
+		}
+		if(xmax<points[i][0]) {
+			xmax=points[i][0];
+		}
+		if(ymin>points[i][1]) {
+			ymin=points[i][1];
+		}
+		if(ymax<points[i][1]) {
+			ymax=points[i][1];
+		}
+	}
+	// AABBを内包する円の半径rと中心(cx,cy)を求める
+	var r;
+	if(xmax-xmin>ymax-ymin) {
+		r=xmax-xmin;
+	} else {
+		r=ymax-ymin;
+	}
+	var cx=(xmax-xmin)*0.5+xmin;
+	var cy=(ymax-ymin)*0.5+ymin;
+	// 求めた円を内包する大き目の正三角形をスーパートライアングルとする
+	var l=4*r;
+	var superTri=new Array(3);
+	superTri[0]=[cx-0.5*l, cy-1.732/6*l];
+	superTri[1]=[cx+0.5*l, cy-1.732/6*l];
+	superTri[2]=[cx, cy+1.732/3*l];
+	return superTri;
 }
 
 
