@@ -116,7 +116,7 @@ function initEvents(canvas) {
 		var result=new delaunayTriangulation(inputPoints, canvasHeight, 0, canvasWidth, 0, constraint);
 		head=result.head;
 		points=result.points;
-		crossTri = result.crossTris;
+		crossTri=result.crossTris;
 
 		var context = canvas.get(0).getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
@@ -139,6 +139,18 @@ function initEvents(canvas) {
 				context.fill();
 			}
 		}
+
+
+		// 拘束辺と交差している三角形の描画
+		context.globalAlpha=0.2;
+		context.fillStyle='gray';
+		context.beginPath();
+		context.moveTo(points[head.vertexID[0]][0], points[head.vertexID[0]][1]);
+		context.lineTo(points[head.vertexID[1]][0], points[head.vertexID[1]][1]);
+		context.lineTo(points[head.vertexID[2]][0], points[head.vertexID[2]][1]);
+		context.lineTo(points[head.vertexID[0]][0], points[head.vertexID[0]][1]);
+		context.fill();
+		context.globalAlpha=1;
 
 		// 拘束辺の描画
 		context.strokeStyle='lightgreen';

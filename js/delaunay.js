@@ -60,7 +60,7 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 
 	// 交差を解消する
 	for(var j=0; j<crossTri.length; ++j) {
-		crossTri[j].remove();
+		head=crossTri[j].remove(head);
 	}
 
 
@@ -247,7 +247,10 @@ DelaunayTriangle.prototype.cloneProperties=function () {
 // この三角形を削除して隣接三角形の参照をはずす
 // 連結リストでは前後の三角形を連結させる
 // 連結リストの次の三角形への参照を返す
-DelaunayTriangle.prototype.remove=function () {
+// 削除される三角形がheadだった場合は、
+// headを次の三角形の参照に変更する
+// 使用例）head=tri.remove(tri) のように呼び出す
+DelaunayTriangle.prototype.remove=function (head) {
 	if(this.adjacent==null) {
 		return null;
 	}
@@ -264,12 +267,18 @@ DelaunayTriangle.prototype.remove=function () {
 	if(this.prev!=null) {
 		this.prev.next=this.next;
 	}
-	var next=this.next;
 	if(this.prev!=null) {
 		this.next=null;
 	}
 	this.prev=null;
-	return next;
+
+	// もし削除する三角形がheadならば
+	// nextに格納されている三角形をheadとする
+	if(this===head) {
+		head=this.next;
+	}
+
+	return head;
 }
 
 // 新しい点を追加して三角形を分割する
