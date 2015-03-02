@@ -24,7 +24,6 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 
 	// すべての点を内包する
 	// 大きい三角形(superTriangle)の頂点を追加
-	// 下の点, 上の点1, 上の点2の順
 	var superTri=delaunayTriangulation.getSuperTriangle(points);
 	points.push(superTri[0]);
 	points.push(superTri[1]);
@@ -58,7 +57,11 @@ function delaunayTriangulation(inputPoints, ymax, ymin, xmax, xmin, constraint) 
 
 
 	// 交差を解消する
-
+	for(var i=0; i<crossTris.length; ++i) {
+		for(var j=0; j<crossTris[i].length; ++j) {
+			crossTris[i][j].remove();
+		}
+	}
 
 
 	return { points: points, head: head, crossConstraint: crossConstraint, crossTris: crossTris };
@@ -237,6 +240,27 @@ DelaunayTriangle.prototype.cloneProperties=function () {
 		prev: this.prev,
 		next: this.next
 	};
+}
+
+
+// 三角形の削除
+// この三角形を削除して隣接三角形の参照をはずす
+// 連結リストでは前後の三角形を連結させる
+// 連結リストの次の三角形への参照を返す
+DelaunayTriangle.prototype.remove=function () {
+	for(var i=0; i<3; ++i) {
+		if(this.adjacent[i]!=null) {
+			this.adjacent[i].adjacent[this.edgeIDinAdjacent[i]]=null;
+		}
+	}
+	this.edgeIDinAdjacent=[];
+	this.adjacent=null;
+	this.next.prev=this.prev;
+	this.prev.next=this.next;
+	var next=this.next;
+	this.prev=null;
+	this.next=null;
+	return next;
 }
 
 // 新しい点を追加して三角形を分割する
