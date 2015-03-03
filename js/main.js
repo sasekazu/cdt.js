@@ -1,6 +1,5 @@
 // JavaScript Document
 /// <reference path="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" />
-/// <reference path="numeric-1.2.6.min.js" />
 
 var colors=['lightsalmon', 'lightseagreen', 'aquamarine', 'beige', 'burlywood', 'mistyrose', 'mediumpurple', 'darkcyan', 'darkgray', 'orchid', 'peru', 'dodgerblue'];
 var N=1000;
@@ -64,7 +63,7 @@ function initEvents(canvas) {
 			var clickPos=[canvasX, canvasY];
 			var dist;
 			for(var i=0; i<inputPoints.length; ++i) {
-				dist=mcdt.norm2(numeric.sub(inputPoints[i], clickPos));
+				dist=mcdt.norm2(mcdt.sub(inputPoints[i], clickPos));
 				if(dist<10) {
 					selectPoint=i;
 					break;

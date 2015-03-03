@@ -1,6 +1,5 @@
 // JavaScript Document
 /// <reference path="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" />
-/// <reference path="numeric-1.2.6.min.js" />
 
 
 // ドロネー三角形分割関数
@@ -188,9 +187,9 @@ mcdt.makePointToTri = function(points, head){
 // 線分の衝突
 // 参考: http://marupeke296.com/COL_2D_No10_SegmentAndSegment.html
 mcdt.isIntersect = function(s1, s2) {
-	var v=numeric.sub(s2[0], s1[0]);
-	var v1=numeric.sub(s1[1], s1[0]);
-	var v2=numeric.sub(s2[1], s2[0]);
+	var v=mcdt.sub(s2[0], s1[0]);
+	var v1=mcdt.sub(s1[1], s1[0]);
+	var v2=mcdt.sub(s2[1], s2[0]);
 	var crs_v1_v2=v1[0]*v2[1]-v1[1]*v2[0];
 	if(crs_v1_v2==0.0) {
 		return false	// 平行状態
@@ -272,8 +271,8 @@ DelaunayTriangle.prototype.init=function (points, indices) {
 	this.next=null;
 	// 頂点が反時計回りになるように並べ替える
 	// v1 cross v2 のz座標が負であれば時計回り
-	var v1=numeric.sub(points[this.vertexID[1]], points[this.vertexID[0]]);
-	var v2=numeric.sub(points[this.vertexID[2]], points[this.vertexID[0]]);
+	var v1=mcdt.sub(points[this.vertexID[1]], points[this.vertexID[0]]);
+	var v2=mcdt.sub(points[this.vertexID[2]], points[this.vertexID[0]]);
 	var tmp;
 	if(v1[0]*v2[1]-v1[1]*v2[0]<0) {
 		tmp=this.vertexID[1];
@@ -471,13 +470,13 @@ DelaunayTriangle.swapping=function (stack, newPointID, points, constraint) {
 				points[adjTri.vertexID[1]],
 				points[adjTri.vertexID[2]]
 			);
-	var swapFlag=(mcdt.norm2(numeric.sub(c.p, points[newPointID]))<c.rad);
+	var swapFlag=(mcdt.norm2(mcdt.sub(c.p, points[newPointID]))<c.rad);
 
 	// FEMのための要素自動分割」では、以下の3行のようにして
 	// 対辺がvFarより短いときスワップを行っているが、
 	// ドロネー三角分割にならないことがあるため外接円を使って判定する
-	//vOpp=numeric.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
-	//vFar=numeric.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
+	//vOpp=mcdt.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
+	//vFar=mcdt.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
 	//var swapFlag=(mcdt.norm2(vOpp)>mcdt.norm2(vFar));
 
 	if(swapFlag) {
@@ -527,8 +526,8 @@ DelaunayTriangle.lawsonTriangleDetection=function (points, head, newPoint) {
 	while(1) {
 		isPointInner=true;
 		for(var i=0; i<3; ++i) {
-			vPt=numeric.sub(newPoint, points[triTmp.vertexID[edge]]);
-			vEdge=numeric.sub(points[triTmp.vertexID[(edge+1)%3]], points[triTmp.vertexID[edge]]);
+			vPt=mcdt.sub(newPoint, points[triTmp.vertexID[edge]]);
+			vEdge=mcdt.sub(points[triTmp.vertexID[(edge+1)%3]], points[triTmp.vertexID[edge]]);
 			// newPointが辺ベクトルの右側にあれば右隣りの三角形に移る
 			if(vPt[0]*vEdge[1]-vPt[1]*vEdge[0]>0) {
 				edgeTmp=triTmp.edgeIDinAdjacent[edge];
@@ -552,17 +551,17 @@ DelaunayTriangle.lawsonTriangleDetection=function (points, head, newPoint) {
 
 // 外接円クラス
 DelaunayTriangle.Circumcircle=function(p1, p2, p3) {
-	var a=mcdt.norm2(numeric.sub(p2, p3));
-	var b=mcdt.norm2(numeric.sub(p3, p1));
-	var c=mcdt.norm2(numeric.sub(p1, p2));
+	var a=mcdt.norm2(mcdt.sub(p2, p3));
+	var b=mcdt.norm2(mcdt.sub(p3, p1));
+	var c=mcdt.norm2(mcdt.sub(p1, p2));
 	var s=(a+b+c)*0.5;
 	this.S=Math.sqrt(s*(s-a)*(s-b)*(s-c));	// area
 	this.rad=(a*b*c)/(4.0*this.S);
 	// Calc center
-	var tmpv1=numeric.mul(a*a*(b*b+c*c-a*a), p1);
-	var tmpv2=numeric.mul(b*b*(c*c+a*a-b*b), p2);
-	var tmpv3=numeric.mul(c*c*(a*a+b*b-c*c), p3);
-	this.p = numeric.div(numeric.add(numeric.add(tmpv1, tmpv2), tmpv3), 16*this.S*this.S);
+	var tmpv1=mcdt.mul(a*a*(b*b+c*c-a*a), p1);
+	var tmpv2=mcdt.mul(b*b*(c*c+a*a-b*b), p2);
+	var tmpv3=mcdt.mul(c*c*(a*a+b*b-c*c), p3);
+	this.p = mcdt.div(mcdt.add(mcdt.add(tmpv1, tmpv2), tmpv3), 16*this.S*this.S);
 }
 
 
@@ -611,4 +610,80 @@ mcdt.norm2=function(src){
 	}
 	return Math.sqrt(tmp);
 
+}
+
+// return x-y
+mcdt.sub=function (x, y) {
+	if(x.length!=y.length) {
+		console.log('length of input arrays are not equal. in mcdt.sub');
+		return null;
+	}
+	var l=x.length;
+	var tmp=new Array(l);
+	for(var i=0; i<l; ++i) {
+		tmp[i]=x[i]-y[i];
+	}
+	return tmp;
+}
+
+
+// return x+y
+mcdt.add=function (x, y) {
+	if(x.length!=y.length) {
+		console.log('ERROR: length of input arrays are not equal. in mcdt.sub');
+		return null;
+	}
+	var l=x.length;
+	var tmp=new Array(l);
+	for(var i=0; i<l; ++i) {
+		tmp[i]=x[i]+y[i];
+	}
+	return tmp;
+}
+
+
+// return x*y
+mcdt.mul=function (x, y) {
+	var a;
+	var v;
+	if(typeof (x)=='number') {
+		a=x;
+		v=y;
+	} else if (typeof(y)=='number'){
+		a=y;
+		v=x;
+	} else {
+		console.log('ERROR: input argument do not include scalar value');
+		return null;
+	}
+	var l=v.length;
+	var tmp=new Array(l);
+	for(var i=0; i<l; ++i) {
+		tmp[i]=a*v[i];
+	}
+	return tmp;
+}
+
+
+// return x/y
+mcdt.div=function (x, y) {
+	var a;
+	var v;
+	if(typeof (x)=='number') {
+		a=x;
+		v=y;
+	} else if(typeof (y)=='number') {
+		a=y;
+		v=x;
+	} else {
+		console.log('ERROR: input arguments do not include scalar value');
+		return null;
+	}
+	var l=v.length;
+	var tmp=new Array(l);
+	var inva=1/a;
+	for(var i=0; i<l; ++i) {
+		tmp[i]=v[i]*inva;
+	}
+	return tmp;
 }
