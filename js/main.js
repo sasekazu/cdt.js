@@ -200,6 +200,9 @@ function initEvents(canvas) {
 			context.stroke();
 		}
 
+		// 隣接関係の描画
+		drawAdjacents(canvas, points, head);
+
 		// 点の描画
 		context.fillStyle='black';
 		drawPoints(canvas, points);
@@ -276,3 +279,28 @@ function drawCircumcirclesFromHead(canvas, points, head) {
 }
 
 
+
+function drawAdjacents(canvas, points, head) {
+	var context=canvas.get(0).getContext("2d");
+	var i=0;
+	var v1=[];
+	var v2=[];
+	for(var tri=head; tri!=null; tri=tri.next) {
+		context.strokeStyle='pink';
+		//context.strokeStyle=colors[i%colors.length];
+		v1=mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
+		v1=mcdt.div(mcdt.add(v1, points[tri.vertexID[2]]), 3);
+		for(var j=0; j<3; ++j) {
+			if(tri.adjacent[j]==null) {
+				continue;
+			}
+			v2=mcdt.add(points[tri.adjacent[j].vertexID[0]], points[tri.adjacent[j].vertexID[1]]);
+			v2=mcdt.div(mcdt.add(v2, points[tri.adjacent[j].vertexID[2]]), 3);
+			context.beginPath();
+			context.moveTo(v1[0], v1[1]);
+			context.lineTo(v2[0], v2[1]);
+			context.stroke();
+		}
+		++i;
+	}
+}
