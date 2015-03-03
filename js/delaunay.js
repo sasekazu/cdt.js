@@ -21,8 +21,8 @@ function mcdt(inputPoints, constraint) {
 		return null;
 	}
 
-	var points=numeric.clone(inputPoints);	// 点の数 x 2(x,y)
-	var cst=numeric.clone(constraint);		// 閉境界 cst[0]=cst[length-1] となるようにする
+	var points=mcdt.clone(inputPoints);	// 点の数 x 2(x,y)
+	var cst=mcdt.clone(constraint);		// 閉境界 cst[0]=cst[length-1] となるようにする
 	if(cst[0]!=cst[cst.length-1]) {
 		cst.push(cst[0]);
 	}
@@ -267,7 +267,7 @@ function DelaunayTriangle(points, indices){
 DelaunayTriangle.prototype.init=function (points, indices) {
 	this.adjacent=[null, null, null];
 	this.edgeIDinAdjacent=[-1, -1, -1];
-	this.vertexID=numeric.clone(indices);
+	this.vertexID=mcdt.clone(indices);
 	this.prev=null;
 	this.next=null;
 	// 頂点が反時計回りになるように並べ替える
@@ -287,8 +287,8 @@ DelaunayTriangle.prototype.init=function (points, indices) {
 DelaunayTriangle.prototype.cloneProperties=function () {
 	return {
 		adjacent: this.adjacent,
-		edgeIDinAdjacent: numeric.clone(this.edgeIDinAdjacent),
-		vertexID: numeric.clone(this.vertexID),
+		edgeIDinAdjacent: mcdt.clone(this.edgeIDinAdjacent),
+		vertexID: mcdt.clone(this.vertexID),
 		prev: this.prev,
 		next: this.next
 	};
@@ -565,3 +565,36 @@ DelaunayTriangle.Circumcircle=function(p1, p2, p3) {
 	this.p = numeric.div(numeric.add(numeric.add(tmpv1, tmpv2), tmpv3), 16*this.S*this.S);
 }
 
+mcdt.clone=function (src) {
+	if(src.length==0) {
+		return [];
+	}
+	var tmp=new Array(src.length);
+	if(typeof (src[0])=='number') {
+		for(var i=0; i<src.length; ++i) {
+			tmp[i]=src[i];
+		}
+		return tmp;
+	}
+	if(typeof (src[0][0]=='number')) {
+		for(var i=0; i<src.length; ++i) {
+			tmp[i]=new Array(src[i].length);
+			for(var j=0; j<src[i].length; ++j) {
+				tmp[i]=src[i];
+			}
+		}
+		return tmp;
+	}
+	if(typeof (src[0][0][0]=='number')) {
+		alert('この処理は未検証 at mcdt.clone');
+		for(var i=0; i<src.length; ++i) {
+			tmp[i]=new Array(src[i].length);
+			for(var j=0; j<src[i].length; ++j) {
+				tmp[i][j]=new Array(src[i][j].length);
+				for(var k=0; k<src[i][j].length; ++k) {
+					tmp[i][j][k]=src[i][j][k];
+				}
+			}
+		}
+	}
+}
