@@ -66,6 +66,25 @@ function mcdt(inputPoints, constraint) {
 
 
 	// STEP4: 交差解消
+	// 交差三角形の頂点を抽出する
+	var rmVtx=[];
+	for(var i=0; i<crossTri.length; ++i) {
+		for(var j=0; j<3; ++j) {
+			rmVtx.push(crossTri[i].vertexID[j]);
+		}
+	}
+	// 重複を解消して昇順にソート
+	rmVtx=rmVtx.filter(function (x, i, self) {
+		return self.indexOf(x)===i;
+	});
+	rmVtx.sort(
+		function (a, b) {
+			if(a<b) return -1;
+			if(a>b) return 1;
+			return 0;
+		}
+	);
+
 
 	// 交差三角形を削除する
 	for(var j=0; j<crossTri.length; ++j) {
@@ -83,7 +102,7 @@ function mcdt(inputPoints, constraint) {
 		conn.push(tri.vertexID);
 	}
 
-	return { points: inputPoints, head: head, crossConstraint: crossConstraint, crossTris: [crossTri], connectivity: conn };
+	return { points: inputPoints, head: head, crossConstraint: crossConstraint, crossTris: [crossTri], connectivity: conn, rmVtx: rmVtx };
 }
 
 mcdt.removeSuperTriangle=function(head, points) {

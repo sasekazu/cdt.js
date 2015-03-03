@@ -119,13 +119,14 @@ function initEvents(canvas) {
 		if(result==null) {
 			// 点の描画
 			context.fillStyle='black';
-			drawPoints(canvas, inputPoints);
+			drawPoints(canvas, inputPoints, 3);
 			return;
 		}
 		head=result.head;
 		points=result.points;
 		crossTri=result.crossTris;
 		conn=result.connectivity;
+		rmVtx=result.rmVtx;
 
 
 		// 外接円の描画
@@ -148,7 +149,12 @@ function initEvents(canvas) {
 		}
 
 
-		// 拘束辺と交差している三角形の描画
+
+		// 隣接関係の描画
+		drawAdjacents(canvas, points, head);
+
+
+		// 三角形headの描画
 		context.globalAlpha=0.2;
 		context.fillStyle='gray';
 		context.beginPath();
@@ -200,12 +206,17 @@ function initEvents(canvas) {
 			context.stroke();
 		}
 
-		// 隣接関係の描画
-		drawAdjacents(canvas, points, head);
-
 		// 点の描画
 		context.fillStyle='black';
-		drawPoints(canvas, points);
+		drawPoints(canvas, points, 3);
+
+		// 削除三角形の頂点の描画
+		context.fillStyle='red';
+		var rmPoints=[];
+		for(var i=0; i<rmVtx.length; ++i) {
+			rmPoints.push(points[rmVtx[i]]);
+		}
+		drawPoints(canvas, rmPoints, 2);
 
 	}
 }
@@ -214,14 +225,14 @@ function initEvents(canvas) {
 // 以下、描画関係
 
 
-function drawPoints(canvas, points) {
+function drawPoints(canvas, points, rad) {
 	var context=canvas.get(0).getContext("2d");
 	var canvasWidth=canvas.width();
 	var canvasHeight=canvas.height();
 	context.setTransform(1, 0, 0, 1, 0, 0);
 	for(var i=0; i<points.length; ++i) {
 		context.beginPath();
-		context.arc(points[i][0], points[i][1], 3, 0, 2*Math.PI, true);
+		context.arc(points[i][0], points[i][1], rad, 0, 2*Math.PI, true);
 		context.fill();
 	}
 }
@@ -282,12 +293,10 @@ function drawCircumcirclesFromHead(canvas, points, head) {
 
 function drawAdjacents(canvas, points, head) {
 	var context=canvas.get(0).getContext("2d");
-	var i=0;
 	var v1=[];
 	var v2=[];
 	for(var tri=head; tri!=null; tri=tri.next) {
-		context.strokeStyle='pink';
-		//context.strokeStyle=colors[i%colors.length];
+		context.strokeStyle='skyblue';
 		v1=mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
 		v1=mcdt.div(mcdt.add(v1, points[tri.vertexID[2]]), 3);
 		for(var j=0; j<3; ++j) {
@@ -301,6 +310,5 @@ function drawAdjacents(canvas, points, head) {
 			context.lineTo(v2[0], v2[1]);
 			context.stroke();
 		}
-		++i;
 	}
 }
