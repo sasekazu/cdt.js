@@ -64,7 +64,7 @@ function initEvents(canvas) {
 			var clickPos=[canvasX, canvasY];
 			var dist;
 			for(var i=0; i<inputPoints.length; ++i) {
-				dist=numeric.norm2(numeric.sub(inputPoints[i], clickPos));
+				dist=mcdt.norm2(numeric.sub(inputPoints[i], clickPos));
 				if(dist<10) {
 					selectPoint=i;
 					break;

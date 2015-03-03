@@ -471,14 +471,14 @@ DelaunayTriangle.swapping=function (stack, newPointID, points, constraint) {
 				points[adjTri.vertexID[1]],
 				points[adjTri.vertexID[2]]
 			);
-	var swapFlag=(numeric.norm2(numeric.sub(c.p, points[newPointID]))<c.rad);
+	var swapFlag=(mcdt.norm2(numeric.sub(c.p, points[newPointID]))<c.rad);
 
 	// FEMのための要素自動分割」では、以下の3行のようにして
 	// 対辺がvFarより短いときスワップを行っているが、
 	// ドロネー三角分割にならないことがあるため外接円を使って判定する
 	//vOpp=numeric.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
 	//vFar=numeric.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
-	//var swapFlag=(numeric.norm2(vOpp)>numeric.norm2(vFar));
+	//var swapFlag=(mcdt.norm2(vOpp)>mcdt.norm2(vFar));
 
 	if(swapFlag) {
 		// vertexID の更新
@@ -552,9 +552,9 @@ DelaunayTriangle.lawsonTriangleDetection=function (points, head, newPoint) {
 
 // 外接円クラス
 DelaunayTriangle.Circumcircle=function(p1, p2, p3) {
-	var a=numeric.norm2(numeric.sub(p2, p3));
-	var b=numeric.norm2(numeric.sub(p3, p1));
-	var c=numeric.norm2(numeric.sub(p1, p2));
+	var a=mcdt.norm2(numeric.sub(p2, p3));
+	var b=mcdt.norm2(numeric.sub(p3, p1));
+	var c=mcdt.norm2(numeric.sub(p1, p2));
 	var s=(a+b+c)*0.5;
 	this.S=Math.sqrt(s*(s-a)*(s-b)*(s-c));	// area
 	this.rad=(a*b*c)/(4.0*this.S);
@@ -564,6 +564,11 @@ DelaunayTriangle.Circumcircle=function(p1, p2, p3) {
 	var tmpv3=numeric.mul(c*c*(a*a+b*b-c*c), p3);
 	this.p = numeric.div(numeric.add(numeric.add(tmpv1, tmpv2), tmpv3), 16*this.S*this.S);
 }
+
+
+//
+// utilities for array processing
+//
 
 mcdt.clone=function (src) {
 	if(src.length==0) {
@@ -597,4 +602,13 @@ mcdt.clone=function (src) {
 			}
 		}
 	}
+}
+
+mcdt.norm2=function(src){
+	var tmp=0;
+	for(var i=0; i<src.length; ++i) {
+		tmp+=src[i]*src[i];
+	}
+	return Math.sqrt(tmp);
+
 }
