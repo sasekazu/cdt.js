@@ -116,7 +116,7 @@ function initEvents(canvas) {
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
 
 		// 三角形分割
-		var result=delaunayTriangulation(inputPoints, constraint);
+		var result=mcdt(inputPoints, constraint);
 		if(result==null) {
 			// 点の描画
 			context.fillStyle='black';

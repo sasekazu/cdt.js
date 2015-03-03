@@ -14,7 +14,7 @@
 //    オブジェクト
 //    points: 点の座標リスト (inputPointsに加えて点群を内包する大きい三角形の頂点を含む)
 //    head: ドロネー三角形クラスの連結リストの先頭への参照
-function delaunayTriangulation(inputPoints, constraint) {
+function mcdt(inputPoints, constraint) {
 
 	// 入力点がない場合、強制終了
 	if(inputPoints.length<3) {
@@ -32,7 +32,7 @@ function delaunayTriangulation(inputPoints, constraint) {
 
 	// すべての点を内包する
 	// 大きい三角形(superTriangle)の頂点を追加
-	var superTri=delaunayTriangulation.getSuperTriangle(points);
+	var superTri=mcdt.getSuperTriangle(points);
 	points.push(superTri[0]);
 	points.push(superTri[1]);
 	points.push(superTri[2]);
@@ -54,16 +54,13 @@ function delaunayTriangulation(inputPoints, constraint) {
 	// STEP3: 辺と閉境界との交差判定
 
 	// 点から三角形へアクセスするためのデータ作成
-	var pointToTri=delaunayTriangulation.makePointToTri(points, head);
+	var pointToTri=mcdt.makePointToTri(points, head);
 	var crossConstraint=[];
-//	var crossTris=[];
 	var crossTri=[];
 	for(var i=0; i<cst.length-1; ++i) {
-		crossTri=delaunayTriangulation.isEdgeCross(points, pointToTri, cst, i);
+		crossTri=mcdt.isEdgeCross(points, pointToTri, cst, i);
 		if(crossTri.length>0) {
 			crossConstraint=[i];
-//			crossConstraint.push(i);
-//			crossTris.push(crossTri);
 			break;
 		}
 	}
@@ -79,7 +76,7 @@ function delaunayTriangulation(inputPoints, constraint) {
 
 
 	// スーパートライアングルの削除
-	head=delaunayTriangulation.removeSuperTriangle(head, points);
+	head=mcdt.removeSuperTriangle(head, points);
 
 	// 三角形接続リストの作成
 	var conn=[];
@@ -90,7 +87,7 @@ function delaunayTriangulation(inputPoints, constraint) {
 	return { points: inputPoints, head: head, crossConstraint: crossConstraint, crossTris: [crossTri], connectivity: conn };
 }
 
-delaunayTriangulation.removeSuperTriangle=function(head, points) {
+mcdt.removeSuperTriangle=function(head, points) {
 	var isSuperVtx;
 	var tri=head;
 	while(1) {
@@ -124,14 +121,14 @@ delaunayTriangulation.removeSuperTriangle=function(head, points) {
 
 
 // i番目の拘束辺の交差判定
-delaunayTriangulation.isEdgeCross=function (points, pointToTri, cst, i) {
+mcdt.isEdgeCross=function (points, pointToTri, cst, i) {
 	var edgePos=[points[cst[i]], points[cst[i+1]]];	// 辺の始点・終点の座標 [[始点],[終点]]
 	// 拘束辺の始点を含む三角形についてのループ
 	var tri;
 	var adjEdge=null;
 	for(var j=0; j<pointToTri[cst[i]].length; ++j) {
 		tri=pointToTri[cst[i]][j];
-		adjEdge=delaunayTriangulation.isTriAndEdgeCross(points, tri, cst, edgePos);
+		adjEdge=mcdt.isTriAndEdgeCross(points, tri, cst, edgePos);
 		if(adjEdge!=null) {
 			break;
 		}
@@ -149,7 +146,7 @@ delaunayTriangulation.isEdgeCross=function (points, pointToTri, cst, i) {
 		if(tri.vertexID[(edgeIDinAdj+2)%3]==cst[i+1]) {
 			break;
 		}
-		adjEdge=delaunayTriangulation.isTriAndEdgeCross(points, tri, cst, edgePos, edgeIDinAdj);
+		adjEdge=mcdt.isTriAndEdgeCross(points, tri, cst, edgePos, edgeIDinAdj);
 	}
 	return crossTri;
 }
@@ -158,13 +155,13 @@ delaunayTriangulation.isEdgeCross=function (points, pointToTri, cst, i) {
 // 三角形と辺の交差判定
 // 交差している場合, triのうちの交差している辺番号を返す
 // そうでない場合，nullを返す
-delaunayTriangulation.isTriAndEdgeCross=function (points, tri, cst, edgePos, except) {
+mcdt.isTriAndEdgeCross=function (points, tri, cst, edgePos, except) {
 	var triPos=[[0, 0], [0, 0], [0, 0]];	// 三角形の頂点座標　[[頂点1],[頂点2],[頂点3]]
 	for(var k=0; k<3; ++k) {
 		triPos[k]=points[tri.vertexID[k]];
 	}
 	for(var k=0; k<3; ++k) {
-		if(delaunayTriangulation.isIntersect(edgePos, [triPos[k], triPos[(k+1)%3]])) {
+		if(mcdt.isIntersect(edgePos, [triPos[k], triPos[(k+1)%3]])) {
 			if(k!=except) {
 				return k;
 			}
@@ -174,7 +171,7 @@ delaunayTriangulation.isTriAndEdgeCross=function (points, tri, cst, edgePos, exc
 }
 
 // pointToTriの作成
-delaunayTriangulation.makePointToTri = function(points, head){
+mcdt.makePointToTri = function(points, head){
 	var pointToTri=new Array(points.length);
 	for(var i=0; i<pointToTri.length; ++i) {
 		pointToTri[i]=[];
@@ -190,7 +187,7 @@ delaunayTriangulation.makePointToTri = function(points, head){
 
 // 線分の衝突
 // 参考: http://marupeke296.com/COL_2D_No10_SegmentAndSegment.html
-delaunayTriangulation.isIntersect = function(s1, s2) {
+mcdt.isIntersect = function(s1, s2) {
 	var v=numeric.sub(s2[0], s1[0]);
 	var v1=numeric.sub(s1[1], s1[0]);
 	var v2=numeric.sub(s2[1], s2[0]);
@@ -211,7 +208,7 @@ delaunayTriangulation.isIntersect = function(s1, s2) {
 	}
 }
 
-delaunayTriangulation.getSuperTriangle=function (points) {
+mcdt.getSuperTriangle=function (points) {
 	if(points.length==0) {
 		return [[0, 0], [0, 0], [0, 0]];
 	}
