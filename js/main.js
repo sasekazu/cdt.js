@@ -126,7 +126,6 @@ function initEvents(canvas) {
 		points=result.points;
 		crossTri=result.crossTris;
 		conn=result.connectivity;
-		rmVtx=result.rmVtx;
 
 
 		// 外接円の描画
@@ -178,21 +177,20 @@ function initEvents(canvas) {
 		context.stroke();
 		context.lineWidth=1;
 
-
 		// 拘束に失敗している辺の描画
 		context.strokeStyle='red';
-		context.lineWidth=6;
 		var crossCnst=result.crossConstraint;
-		for(var i=0; i<crossCnst.length; ++i) {
+		if(crossCnst!=null) {
+			context.lineWidth=6;
 			context.beginPath();
-			var crossID=crossCnst[i];
+			var crossID=crossCnst;
 			var pointID=constraint[crossID];
 			var pointID2=constraint[crossID+1];
 			context.moveTo(inputPoints[pointID][0], inputPoints[pointID][1]);
 			context.lineTo(inputPoints[pointID2][0], inputPoints[pointID2][1]);
 			context.stroke();
+			context.lineWidth=1;
 		}
-		context.lineWidth=1;
 
 		// 三角形の描画
 		context.strokeStyle='black';
@@ -213,10 +211,25 @@ function initEvents(canvas) {
 		// 削除三角形の頂点の描画
 		context.fillStyle='red';
 		var rmPoints=[];
-		for(var i=0; i<rmVtx.length; ++i) {
-			rmPoints.push(points[rmVtx[i]]);
+		for(var i=0; i<result.rmVtx.length; ++i) {
+			rmPoints.push(points[result.rmVtx[i]]);
 		}
 		drawPoints(canvas, rmPoints, 2);
+		// upperVtx
+		context.fillStyle='lime';
+		rmPoints=[];
+		for(var i=0; i<result.upperVtx.length; ++i) {
+			rmPoints.push(points[result.upperVtx[i]]);
+		}
+		drawPoints(canvas, rmPoints, 2);
+		// lowerVtx
+		context.fillStyle='yellow';
+		rmPoints=[];
+		for(var i=0; i<result.lowerVtx.length; ++i) {
+			rmPoints.push(points[result.lowerVtx[i]]);
+		}
+		drawPoints(canvas, rmPoints, 2);
+
 
 	}
 }

@@ -28,7 +28,6 @@ function mcdt(inputPoints, constraint) {
 
 
 	// STEP1: スーパートライアングルの作成
-
 	// すべての点を内包する
 	// 大きい三角形(superTriangle)の頂点を追加
 	var superTri=mcdt.getSuperTriangle(points);
@@ -40,7 +39,6 @@ function mcdt(inputPoints, constraint) {
 
 
 	// STEP2: 点の逐次追加
-
 	// まず点を内包する三角形をローソン探査法で探し
 	// その後、スワッピングアルゴリズムを用いて分割
 	var resultTri=head;
@@ -49,32 +47,17 @@ function mcdt(inputPoints, constraint) {
 		resultTri.addPoint(i, points, cst);
 	}
 
-
 	// STEP3: 辺と閉境界との交差判定
 	var resultCrossTri=mcdt.getCrossTriConstraint(points, head, cst);
-	var crossConstraint=[];
-	if(resultCrossTri.crossConstraint!=null) {
-		crossConstraint=[resultCrossTri.crossConstraint];
-	}
+	var crossConstraint=resultCrossTri.crossConstraint;
 	var crossTri=resultCrossTri.crossTri;
-
-	/*
-	var pointToTri=mcdt.makePointToTri(points, head);
-	var crossConstraint=[];
-	var crossTri=[];
-	for(var i=0; i<cst.length-1; ++i) {
-		crossTri=mcdt.isEdgeCross(points, pointToTri, cst, i);
-		if(crossTri.length>0) {
-			crossConstraint=[i];
-			break;
-		}
-	}
-	*/
 
 	// STEP4: 交差解消
 	// 交差三角形の頂点を抽出する
 	var rmVtx=mcdt.extractVerticesFromTri(crossTri);
-
+	var resultULV=mcdt.getUpperAndLowerVtx(points, cst, crossConstraint, rmVtx);
+	var upperVtx=resultULV.upperVtx;
+	var lowerVtx=resultULV.lowerVtx;
 
 	// 交差三角形を削除する
 	for(var j=0; j<crossTri.length; ++j) {
@@ -92,9 +75,38 @@ function mcdt(inputPoints, constraint) {
 		conn.push(tri.vertexID);
 	}
 
-	return { points: inputPoints, head: head, crossConstraint: crossConstraint, crossTris: [crossTri], connectivity: conn, rmVtx: rmVtx };
+	return {
+		points: inputPoints,
+		head: head,
+		crossConstraint: crossConstraint,
+		crossTris: [crossTri],
+		connectivity: conn,
+		rmVtx: rmVtx,
+		upperVtx: upperVtx,
+		lowerVtx: lowerVtx
+	};
 }
 
+// crossConstraint番目のcstで定義される辺ベクトルで
+// 頂点群vtxを分割し，upperVtx, lowerVtxに分ける
+// 辺ベクトル上の頂点はどちらにも分類されない
+mcdt.getUpperAndLowerVtx=function(points, cst, crossConstraint, vtx){
+	var upperVtx=[];
+	var lowerVtx=[];
+	if(crossConstraint!=null) {
+		var cstVec=mcdt.sub(points[cst[crossConstraint+1]], points[cst[crossConstraint]]);
+		var vtxVec;
+		for(var i=0; i<vtx.length; ++i) {
+			vtxVec=mcdt.sub(points[vtx[i]], points[cst[crossConstraint]]);
+			if(cstVec[0]*vtxVec[1]-cstVec[1]*vtxVec[0]>0) {
+				upperVtx.push(vtx[i]);
+			} else if(cstVec[0]*vtxVec[1]-cstVec[1]*vtxVec[0]<0) {
+				lowerVtx.push(vtx[i]);
+			}
+		}
+	}
+	return {upperVtx: upperVtx, lowerVtx: lowerVtx};
+}
 
 // DelauneyTriangleの辺と閉境界との交差判定
 mcdt.getCrossTriConstraint=function (points, head, cst) {
@@ -178,7 +190,7 @@ mcdt.isEdgeCross=function (points, pointToTri, cst, i) {
 	var adjEdge=null;
 	for(var j=0; j<pointToTri[cst[i]].length; ++j) {
 		tri=pointToTri[cst[i]][j];
-		adjEdge=mcdt.isTriAndEdgeCross(points, tri, cst, edgePos);
+		adjEdge=mcdt.isTriAndEdgeCross(points, tri, edgePos);
 		if(adjEdge!=null) {
 			break;
 		}
@@ -196,7 +208,7 @@ mcdt.isEdgeCross=function (points, pointToTri, cst, i) {
 		if(tri.vertexID[(edgeIDinAdj+2)%3]==cst[i+1]) {
 			break;
 		}
-		adjEdge=mcdt.isTriAndEdgeCross(points, tri, cst, edgePos, edgeIDinAdj);
+		adjEdge=mcdt.isTriAndEdgeCross(points, tri, edgePos, edgeIDinAdj);
 	}
 	return crossTri;
 }
@@ -205,7 +217,7 @@ mcdt.isEdgeCross=function (points, pointToTri, cst, i) {
 // 三角形と辺の交差判定
 // 交差している場合, triのうちの交差している辺番号を返す
 // そうでない場合，nullを返す
-mcdt.isTriAndEdgeCross=function (points, tri, cst, edgePos, except) {
+mcdt.isTriAndEdgeCross=function (points, tri, edgePos, except) {
 	var triPos=[[0, 0], [0, 0], [0, 0]];	// 三角形の頂点座標　[[頂点1],[頂点2],[頂点3]]
 	for(var k=0; k<3; ++k) {
 		triPos[k]=points[tri.vertexID[k]];
