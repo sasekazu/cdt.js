@@ -51,8 +51,14 @@ function mcdt(inputPoints, constraint) {
 
 
 	// STEP3: 辺と閉境界との交差判定
+	var resultCrossTri=mcdt.getCrossTriConstraint(points, head, cst);
+	var crossConstraint=[];
+	if(resultCrossTri.crossConstraint!=null) {
+		crossConstraint=[resultCrossTri.crossConstraint];
+	}
+	var crossTri=resultCrossTri.crossTri;
 
-	// 点から三角形へアクセスするためのデータ作成
+	/*
 	var pointToTri=mcdt.makePointToTri(points, head);
 	var crossConstraint=[];
 	var crossTri=[];
@@ -63,27 +69,11 @@ function mcdt(inputPoints, constraint) {
 			break;
 		}
 	}
-
+	*/
 
 	// STEP4: 交差解消
 	// 交差三角形の頂点を抽出する
-	var rmVtx=[];
-	for(var i=0; i<crossTri.length; ++i) {
-		for(var j=0; j<3; ++j) {
-			rmVtx.push(crossTri[i].vertexID[j]);
-		}
-	}
-	// 重複を解消して昇順にソート
-	rmVtx=rmVtx.filter(function (x, i, self) {
-		return self.indexOf(x)===i;
-	});
-	rmVtx.sort(
-		function (a, b) {
-			if(a<b) return -1;
-			if(a>b) return 1;
-			return 0;
-		}
-	);
+	var rmVtx=mcdt.extractVerticesFromTri(crossTri);
 
 
 	// 交差三角形を削除する
@@ -103,6 +93,48 @@ function mcdt(inputPoints, constraint) {
 	}
 
 	return { points: inputPoints, head: head, crossConstraint: crossConstraint, crossTris: [crossTri], connectivity: conn, rmVtx: rmVtx };
+}
+
+
+// DelauneyTriangleの辺と閉境界との交差判定
+mcdt.getCrossTriConstraint=function (points, head, cst) {
+	// 点から三角形へアクセスするためのデータ作成
+	var pointToTri=mcdt.makePointToTri(points, head);
+	var crossConstraint=null;
+	var crossTri=[];
+	for(var i=0; i<cst.length-1; ++i) {
+		crossTri=mcdt.isEdgeCross(points, pointToTri, cst, i);
+		if(crossTri.length>0) {
+			crossConstraint=i;
+			break;
+		}
+	}
+	return {crossTri: crossTri, crossConstraint: crossConstraint};
+}
+
+
+
+// DelauneyTriangleオブジェクトの配列から
+// 重複のない頂点IDを抽出する
+mcdt.extractVerticesFromTri=function(triAry){
+	var vtx=[];
+	for(var i=0; i<triAry.length; ++i) {
+		for(var j=0; j<3; ++j) {
+			vtx.push(triAry[i].vertexID[j]);
+		}
+	}
+	// 重複を解消して昇順にソート
+	vtx=vtx.filter(function (x, i, self) {
+		return self.indexOf(x)===i;
+	});
+	vtx.sort(
+		function (a, b) {
+			if(a<b) return -1;
+			if(a>b) return 1;
+			return 0;
+		}
+	);
+	return vtx;
 }
 
 mcdt.removeSuperTriangle=function(head, points) {
