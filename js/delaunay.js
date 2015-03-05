@@ -59,6 +59,44 @@ function mcdt(inputPoints, constraint) {
 	var upperVtx=resultULV.upperVtx;
 	var lowerVtx=resultULV.lowerVtx;
 
+	if(crossConstraint!=null) {
+		// upperVtx, lowerVtxを辺中点にたいして反時計回りになるように並べ替え
+		var midpoint=mcdt.mul(0.5, mcdt.add(points[cst[crossConstraint+1]], points[cst[crossConstraint]]));
+		function ccw(val1, val2) {
+			th1=Math.atan2(points[val1][1]-midpoint[1], points[val1][0]-midpoint[0]);
+			th2=Math.atan2(points[val2][1]-midpoint[1], points[val2][0]-midpoint[0]);
+			return th2-th1;
+		}
+		upperVtx.sort(ccw);
+		lowerVtx.sort(ccw);
+		var upperPos=new Array(upperVtx.length);
+		for(var i=0; i<upperPos.length; ++i) {
+			upperPos[i]=mcdt.clone(points[upperVtx[i]]);
+		}
+		var upperCst=new Array(upperVtx.length);
+		for(var i=0; i<upperVtx.length; ++i){
+			upperCst[i]=i;
+		}
+		var upperResult=mcdt.innerTriangulation(upperPos, upperCst);
+		var upperHead=upperResult.head;
+		for(var tri=upperHead; tri!=null; tri=tri.next) {
+			for(var i=0; i<3; ++i) {
+				tri.vertexID[i]=upperVtx[tri.vertexID[i]];
+			}
+		}
+		var tail=head;
+		while(1) {
+			if(tail.next==null) {
+				break;
+			} else {
+				tail=tail.next;
+			}
+		}
+		tail.next=upperHead;
+		upperHead.prev=tail;
+	}
+
+
 	// 交差三角形を削除する
 	for(var j=0; j<crossTri.length; ++j) {
 		head=crossTri[j].remove(head);
@@ -85,6 +123,44 @@ function mcdt(inputPoints, constraint) {
 		upperVtx: upperVtx,
 		lowerVtx: lowerVtx
 	};
+}
+
+
+mcdt.innerTriangulation=function(inputPoints, constraint) {
+		// 入力点がない場合、強制終了
+		if(inputPoints.length<3) {
+			return null;
+		}
+		var points=mcdt.clone(inputPoints);	// 点の数 x 2(x,y)
+		var cst=mcdt.clone(constraint);		// 閉境界 cst[0]=cst[length-1] となるようにする
+		if(cst[0]!=cst[cst.length-1]) {
+			cst.push(cst[0]);
+		}
+		// STEP1: スーパートライアングルの作成
+		var superTri=mcdt.getSuperTriangle(points);
+		points.push(superTri[0]);
+		points.push(superTri[1]);
+		points.push(superTri[2]);
+		var l=points.length;
+		var head=new DelaunayTriangle(points, [l-3, l-2, l-1]);
+		// STEP2: 点の逐次追加
+		var resultTri=head;
+		for(var i=0; i<points.length-3; ++i) {
+			resultTri=DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
+			resultTri.addPoint(i, points, cst);
+		}
+		// スーパートライアングルの削除
+		head=mcdt.removeSuperTriangle(head, points);
+		// 三角形接続リストの作成
+		var conn=[];
+		for(var tri=head; tri!=null; tri=tri.next) {
+			conn.push(tri.vertexID);
+		}
+		return {
+			points: inputPoints,
+			head: head,
+			connectivity: conn,
+		};
 }
 
 // crossConstraint番目のcstで定義される辺ベクトルで

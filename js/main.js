@@ -217,18 +217,40 @@ function initEvents(canvas) {
 		drawPoints(canvas, rmPoints, 2);
 		// upperVtx
 		context.fillStyle='purple';
+		context.strokeStyle='purple';
+		context.lineWidth=5;
 		rmPoints=[];
 		for(var i=0; i<result.upperVtx.length; ++i) {
 			rmPoints.push(points[result.upperVtx[i]]);
 		}
 		drawPoints(canvas, rmPoints, 8);
+		context.beginPath();
+		if(rmPoints.length!=0) {
+			context.moveTo(rmPoints[0][0], rmPoints[0][1]);
+		}
+		for(var i=1; i<rmPoints.length; ++i) {
+			context.lineTo(rmPoints[i][0], rmPoints[i][1]);
+		}
+		context.stroke();
+		context.lineWidth=1;
 		// lowerVtx
 		context.fillStyle='orange';
+		context.strokeStyle='orange';
+		context.lineWidth=5;
 		rmPoints=[];
 		for(var i=0; i<result.lowerVtx.length; ++i) {
 			rmPoints.push(points[result.lowerVtx[i]]);
 		}
 		drawPoints(canvas, rmPoints, 4);
+		context.beginPath();
+		if(rmPoints.length!=0) {
+			context.moveTo(rmPoints[0][0], rmPoints[0][1]);
+		}
+		for(var i=1; i<rmPoints.length; ++i) {
+			context.lineTo(rmPoints[i][0], rmPoints[i][1]);
+		}
+		context.stroke();
+		context.lineWidth=1;
 
 
 	}
