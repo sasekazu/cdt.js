@@ -216,19 +216,19 @@ function initEvents(canvas) {
 		}
 		drawPoints(canvas, rmPoints, 2);
 		// upperVtx
-		context.fillStyle='lime';
+		context.fillStyle='purple';
 		rmPoints=[];
 		for(var i=0; i<result.upperVtx.length; ++i) {
 			rmPoints.push(points[result.upperVtx[i]]);
 		}
-		drawPoints(canvas, rmPoints, 2);
+		drawPoints(canvas, rmPoints, 8);
 		// lowerVtx
-		context.fillStyle='yellow';
+		context.fillStyle='orange';
 		rmPoints=[];
 		for(var i=0; i<result.lowerVtx.length; ++i) {
 			rmPoints.push(points[result.lowerVtx[i]]);
 		}
-		drawPoints(canvas, rmPoints, 2);
+		drawPoints(canvas, rmPoints, 4);
 
 
 	}

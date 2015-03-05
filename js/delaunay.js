@@ -89,7 +89,7 @@ function mcdt(inputPoints, constraint) {
 
 // crossConstraint番目のcstで定義される辺ベクトルで
 // 頂点群vtxを分割し，upperVtx, lowerVtxに分ける
-// 辺ベクトル上の頂点はどちらにも分類されない
+// 辺ベクトル上の頂点は両方に含まれる
 mcdt.getUpperAndLowerVtx=function(points, cst, crossConstraint, vtx){
 	var upperVtx=[];
 	var lowerVtx=[];
@@ -104,6 +104,10 @@ mcdt.getUpperAndLowerVtx=function(points, cst, crossConstraint, vtx){
 				lowerVtx.push(vtx[i]);
 			}
 		}
+		upperVtx.push(cst[crossConstraint+1]);
+		upperVtx.push(cst[crossConstraint]);
+		lowerVtx.push(cst[crossConstraint+1]);
+		lowerVtx.push(cst[crossConstraint]);
 	}
 	return {upperVtx: upperVtx, lowerVtx: lowerVtx};
 }
