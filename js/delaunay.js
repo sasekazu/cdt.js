@@ -59,6 +59,7 @@ function mcdt(inputPoints, constraint) {
 	var upperVtx=resultULV.upperVtx;
 	var lowerVtx=resultULV.lowerVtx;
 
+
 	if(crossConstraint!=null) {
 		// upperVtx, lowerVtxを辺中点にたいして反時計回りになるように並べ替え
 		var midpoint=mcdt.mul(0.5, mcdt.add(points[cst[crossConstraint+1]], points[cst[crossConstraint]]));
@@ -69,31 +70,19 @@ function mcdt(inputPoints, constraint) {
 		}
 		upperVtx.sort(ccw);
 		lowerVtx.sort(ccw);
-		var upperPos=new Array(upperVtx.length);
-		for(var i=0; i<upperPos.length; ++i) {
-			upperPos[i]=mcdt.clone(points[upperVtx[i]]);
-		}
-		var upperCst=new Array(upperVtx.length);
-		for(var i=0; i<upperVtx.length; ++i){
-			upperCst[i]=i;
-		}
-		var upperResult=mcdt.innerTriangulation(upperPos, upperCst);
+
+		var upperResult=mcdt.innerTriangulation(points, upperVtx);
 		var upperHead=upperResult.head;
-		for(var tri=upperHead; tri!=null; tri=tri.next) {
-			for(var i=0; i<3; ++i) {
-				tri.vertexID[i]=upperVtx[tri.vertexID[i]];
-			}
-		}
-		var tail=head;
-		while(1) {
-			if(tail.next==null) {
-				break;
-			} else {
-				tail=tail.next;
-			}
-		}
+		var tail=mcdt.getTail(head);
 		tail.next=upperHead;
 		upperHead.prev=tail;
+
+		var lowerResult=mcdt.innerTriangulation(points, lowerVtx);
+		var lowerHead=lowerResult.head;
+		tail=mcdt.getTail(head);
+		tail.next=lowerHead;
+		lowerHead.prev=tail;
+
 	}
 
 
@@ -126,41 +115,66 @@ function mcdt(inputPoints, constraint) {
 }
 
 
-mcdt.innerTriangulation=function(inputPoints, constraint) {
-		// 入力点がない場合、強制終了
-		if(inputPoints.length<3) {
-			return null;
+mcdt.getTail=function (head) {
+	var tail=head;
+	while(1) {
+		if(tail.next==null) {
+			break;
+		} else {
+			tail=tail.next;
 		}
-		var points=mcdt.clone(inputPoints);	// 点の数 x 2(x,y)
-		var cst=mcdt.clone(constraint);		// 閉境界 cst[0]=cst[length-1] となるようにする
-		if(cst[0]!=cst[cst.length-1]) {
-			cst.push(cst[0]);
+	}
+	return tail;
+}
+
+mcdt.innerTriangulation=function (points, innerVtx) {
+
+	var innerPoints=new Array(innerVtx.length);
+	for(var i=0; i<innerPoints.length; ++i) {
+		innerPoints[i]=mcdt.clone(points[innerVtx[i]]);
+	}
+	var constraint=new Array(innerVtx.length);
+	for(var i=0; i<innerVtx.length; ++i) {
+		constraint[i]=i;
+	}
+
+	var cst=mcdt.clone(constraint);		// 閉境界 cst[0]=cst[length-1] となるようにする
+	if(cst[0]!=cst[cst.length-1]) {
+		cst.push(cst[0]);
+	}
+	// STEP1: スーパートライアングルの作成
+	var superTri=mcdt.getSuperTriangle(innerPoints);
+	innerPoints.push(superTri[0]);
+	innerPoints.push(superTri[1]);
+	innerPoints.push(superTri[2]);
+	var l=innerPoints.length;
+	var head=new DelaunayTriangle(innerPoints, [l-3, l-2, l-1]);
+	// STEP2: 点の逐次追加
+	var resultTri=head;
+	for(var i=0; i<innerPoints.length-3; ++i) {
+		resultTri=DelaunayTriangle.lawsonTriangleDetection(innerPoints, resultTri, innerPoints[i]);
+		resultTri.addPoint(i, innerPoints, cst);
+	}
+	// スーパートライアングルの削除
+	head=mcdt.removeSuperTriangle(head, innerPoints);
+
+	// 親ドロネーの頂点インデックスに書き換える
+	for(var tri=head; tri!=null; tri=tri.next) {
+		for(var i=0; i<3; ++i) {
+			tri.vertexID[i]=innerVtx[tri.vertexID[i]];
 		}
-		// STEP1: スーパートライアングルの作成
-		var superTri=mcdt.getSuperTriangle(points);
-		points.push(superTri[0]);
-		points.push(superTri[1]);
-		points.push(superTri[2]);
-		var l=points.length;
-		var head=new DelaunayTriangle(points, [l-3, l-2, l-1]);
-		// STEP2: 点の逐次追加
-		var resultTri=head;
-		for(var i=0; i<points.length-3; ++i) {
-			resultTri=DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
-			resultTri.addPoint(i, points, cst);
-		}
-		// スーパートライアングルの削除
-		head=mcdt.removeSuperTriangle(head, points);
-		// 三角形接続リストの作成
-		var conn=[];
-		for(var tri=head; tri!=null; tri=tri.next) {
-			conn.push(tri.vertexID);
-		}
-		return {
-			points: inputPoints,
-			head: head,
-			connectivity: conn,
-		};
+	}
+
+	// 三角形接続リストの作成
+	var conn=[];
+	for(var tri=head; tri!=null; tri=tri.next) {
+		conn.push(tri.vertexID);
+	}
+	return {
+		points: innerPoints,
+		head: head,
+		connectivity: conn,
+	};
 }
 
 // crossConstraint番目のcstで定義される辺ベクトルで

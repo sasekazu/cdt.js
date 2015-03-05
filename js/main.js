@@ -215,6 +215,7 @@ function initEvents(canvas) {
 			rmPoints.push(points[result.rmVtx[i]]);
 		}
 		drawPoints(canvas, rmPoints, 2);
+		/*
 		// upperVtx
 		context.fillStyle='purple';
 		context.strokeStyle='purple';
@@ -251,8 +252,7 @@ function initEvents(canvas) {
 		}
 		context.stroke();
 		context.lineWidth=1;
-
-
+		*/
 	}
 }
 
