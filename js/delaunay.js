@@ -63,7 +63,7 @@ function mcdt(inputPoints, constraint) {
 	if(crossConstraint!=null) {
 		// upperVtx, lowerVtxを辺中点にたいして反時計回りになるように並べ替え
 		var midpoint=mcdt.mul(0.5, mcdt.add(points[cst[crossConstraint+1]], points[cst[crossConstraint]]));
-		function ccw(val1, val2) {
+		var ccw = function(val1, val2) {
 			th1=Math.atan2(points[val1][1]-midpoint[1], points[val1][0]-midpoint[0]);
 			th2=Math.atan2(points[val2][1]-midpoint[1], points[val2][0]-midpoint[0]);
 			return th2-th1;
@@ -173,7 +173,7 @@ mcdt.innerTriangulation=function (points, innerVtx) {
 	return {
 		points: innerPoints,
 		head: head,
-		connectivity: conn,
+		connectivity: conn
 	};
 }
 
