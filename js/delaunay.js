@@ -19,9 +19,10 @@ function mcdt(inputPoints, constraint) {
 	if(inputPoints.length < 3) {
 		return null;
 	}
-
-	var points = mcdt.clone(inputPoints);	// 点の数 x 2(x,y)
-	var cst = mcdt.clone(constraint);		// 閉境界 cst[0]=cst[length-1] となるようにする
+	// 頂点座標群と閉境界のデータコピーと整形
+	// 閉境界は cst[0]=cst[length-1] となるようにする
+	var points = mcdt.clone(inputPoints);
+	var cst = mcdt.clone(constraint);		
 	if(cst[0] != cst[cst.length - 1]) {
 		cst.push(cst[0]);
 	}
@@ -49,68 +50,23 @@ function mcdt(inputPoints, constraint) {
 
 	// STEP3: 辺と閉境界との交差判定
 	var resultCrossTri = mcdt.getCrossTriConstraint(points, head, cst);
-	var crossConstraint = resultCrossTri.crossConstraint;
+	var crossCst = resultCrossTri.crossConstraint;
 	var crossTri = resultCrossTri.crossTri;
 
 	// STEP4: 交差解消
 	// 交差三角形の頂点を抽出する
 	var rmVtx = mcdt.extractVerticesFromTri(crossTri);
-	var resultULV = mcdt.getUpperAndLowerVtx(points, cst, crossConstraint, rmVtx);
-	var upperVtx = resultULV.upperVtx;
-	var lowerVtx = resultULV.lowerVtx;
-	// 交差三角形の隣接三角形として登録されているものをすべて抽出する
-	var adjTriAll = [];
-	for(var i = 0; i < crossTri.length; ++i) {
-		for(var j = 0; j < 3; ++j) {
-			adjTriAll.push(crossTri[i].adjacent[j]);
-		}
-	}
-
-	// 交差三角形を削除する
-	for(var j = 0; j < crossTri.length; ++j) {
-		head = crossTri[j].remove(head);
-	}
-
-	// 隣接三角形のうち削除されていないものを残す
-	var adjTris = [];
-	for(var i = 0; i < adjTriAll.length; ++i) {
-		if(!adjTriAll[i].isRemoved) {
-			adjTris.push(adjTriAll[i]);
-		}
-	}
-	adjTriAll = null;	// この変数はもう使わない
-
+	var resultULV = mcdt.getUpperAndLowerVtx(points, cst, crossCst, rmVtx);
+	// 交差三角形の削除
+	var adjTris = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
 	// 新しい三角形を追加する
-	if(crossConstraint != null) {
-		// upperVtx, lowerVtxを辺中点にたいして反時計回りになるように並べ替え
-		var midpoint = mcdt.mul(0.5, mcdt.add(points[cst[crossConstraint + 1]], points[cst[crossConstraint]]));
-		var ccw = function (val1, val2) {
-			th1 = Math.atan2(points[val1][1] - midpoint[1], points[val1][0] - midpoint[0]);
-			th2 = Math.atan2(points[val2][1] - midpoint[1], points[val2][0] - midpoint[0]);
-			return th2 - th1;
-		}
-		var tail;
-
-		upperVtx.sort(ccw);
-		var upperResult = mcdt.innerTriangulation(points, upperVtx);
-		var upperHead = upperResult.head;
-		mcdt.updateLocalAdjacents(upperHead, adjTris);
-		tail = mcdt.getTail(head);
-		tail.next = upperHead;
-		upperHead.prev = tail;
-
-		lowerVtx.sort(ccw);
-		var lowerResult = mcdt.innerTriangulation(points, lowerVtx);
-		var lowerHead = lowerResult.head;
-		mcdt.updateLocalAdjacents(lowerHead, adjTris);
-		tail = mcdt.getTail(head);
-		tail.next = lowerHead;
-		lowerHead.prev = tail;
-
+	if(crossCst != null) {
+		var upperHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.upperVtx, adjTris, head);
+		var lowerHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.lowerVtx, adjTris, head);
 		mcdt.updateLocalAdjacentsLU(upperHead, lowerHead);
 	}
 
-	// スーパートライアングルの削除
+	// STEP5: スーパートライアングルの削除
 	head = mcdt.removeSuperTriangle(head, points);
 
 	// 三角形接続リストの作成
@@ -122,14 +78,55 @@ function mcdt(inputPoints, constraint) {
 	return {
 		points: inputPoints,
 		head: head,
-		crossConstraint: crossConstraint,
+		crossConstraint: crossCst,
 		crossTris: [crossTri],
 		connectivity: conn,
 		rmVtx: rmVtx,
-		upperVtx: upperVtx,
-		lowerVtx: lowerVtx,
+		upperVtx: resultULV.upperVtx,
+		lowerVtx: resultULV.lowerVtx,
 		adjTris: adjTris
 	};
+}
+
+mcdt.removeCrossTriAndExtractOuterEdge = function (crossTri, head) {
+	// 交差三角形の隣接三角形として登録されているものをすべて抽出する
+	var adjTriAll = [];
+	for(var i = 0; i < crossTri.length; ++i) {
+		for(var j = 0; j < 3; ++j) {
+			adjTriAll.push(crossTri[i].adjacent[j]);
+		}
+	}
+	// 交差三角形を削除する
+	for(var j = 0; j < crossTri.length; ++j) {
+		head = crossTri[j].remove(head);
+	}
+	// 隣接三角形のうち削除されていないものを残す
+	var adjTris = [];
+	for(var i = 0; i < adjTriAll.length; ++i) {
+		if(!adjTriAll[i].isRemoved) {
+			adjTris.push(adjTriAll[i]);
+		}
+	}
+	return adjTris;
+}
+
+
+mcdt.addInnerVetices = function (points, cst, crossConstraint, localVtx, adjTris, head) {
+	// localVtxを辺中点にたいして反時計回りになるように並べ替え
+	var midpoint = mcdt.mul(0.5, mcdt.add(points[cst[crossConstraint + 1]], points[cst[crossConstraint]]));
+	var ccw = function (val1, val2) {
+		th1 = Math.atan2(points[val1][1] - midpoint[1], points[val1][0] - midpoint[0]);
+		th2 = Math.atan2(points[val2][1] - midpoint[1], points[val2][0] - midpoint[0]);
+		return th2 - th1;
+	}
+	localVtx.sort(ccw);
+	var result = mcdt.innerTriangulation(points, localVtx);
+	var localHead = result.head;
+	mcdt.updateLocalAdjacents(localHead, adjTris);
+	var tail = mcdt.getTail(head);
+	tail.next = localHead;
+	localHead.prev = tail;
+	return localHead;
 }
 
 
@@ -261,6 +258,7 @@ mcdt.getUpperAndLowerVtx = function (points, cst, crossConstraint, vtx) {
 	return { upperVtx: upperVtx, lowerVtx: lowerVtx };
 }
 
+
 // DelauneyTriangleの辺と閉境界との交差判定
 mcdt.getCrossTriConstraint = function (points, head, cst) {
 	// 点から三角形へアクセスするためのデータ作成
@@ -276,7 +274,6 @@ mcdt.getCrossTriConstraint = function (points, head, cst) {
 	}
 	return { crossTri: crossTri, crossConstraint: crossConstraint };
 }
-
 
 
 // DelauneyTriangleオブジェクトの配列から
