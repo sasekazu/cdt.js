@@ -146,7 +146,21 @@ function initEvents(canvas) {
 				context.fill();
 			}
 		}
-
+		
+		// 交差三角形と隣接している三角形の描画
+		context.fillStyle='lightyellow';
+		var adjTris=result.adjTris;
+		for(var i=0; i<adjTris.length; ++i) {
+			if(adjTris[i].isRemoved) {
+				continue;
+			}
+			context.beginPath();
+			context.moveTo(points[adjTris[i].vertexID[0]][0], points[adjTris[i].vertexID[0]][1]);
+			context.lineTo(points[adjTris[i].vertexID[1]][0], points[adjTris[i].vertexID[1]][1]);
+			context.lineTo(points[adjTris[i].vertexID[2]][0], points[adjTris[i].vertexID[2]][1]);
+			context.lineTo(points[adjTris[i].vertexID[0]][0], points[adjTris[i].vertexID[0]][1]);
+			context.fill();
+		}
 
 
 		// 隣接関係の描画
