@@ -120,8 +120,7 @@ mcdt.addInnerVetices = function (points, cst, crossConstraint, localVtx, adjTris
 		return th2 - th1;
 	}
 	localVtx.sort(ccw);
-	var result = mcdt.innerTriangulation(points, localVtx);
-	var localHead = result.head;
+	var localHead = mcdt.innerTriangulation(points, localVtx);
 	mcdt.updateLocalAdjacents(localHead, adjTris);
 	var tail = mcdt.getTail(head);
 	tail.next = localHead;
@@ -183,6 +182,11 @@ mcdt.getTail = function (head) {
 }
 
 mcdt.innerTriangulation = function (points, innerVtx) {
+
+	if(innerVtx.length == 3) {
+		return new DelaunayTriangle(points, [innerVtx[0], innerVtx[1], innerVtx[2]]);
+	}
+
 	// 親の頂点群から三角形分割する頂点を抜き出す
 	var innerPoints = new Array(innerVtx.length);
 	for(var i = 0; i < innerPoints.length; ++i) {
@@ -221,16 +225,7 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 			tri.vertexID[i] = innerVtx[tri.vertexID[i]];
 		}
 	}
-	// 三角形接続リストの作成
-	var conn = [];
-	for(var tri = head; tri != null; tri = tri.next) {
-		conn.push(tri.vertexID);
-	}
-	return {
-		points: innerPoints,
-		head: head,
-		connectivity: conn
-	};
+	return head;
 }
 
 // crossConstraint番目のcstで定義される辺ベクトルで
