@@ -183,6 +183,10 @@ mcdt.getTail = function (head) {
 
 mcdt.innerTriangulation = function (points, innerVtx) {
 
+	// 頂点数が3の時は分割するまでもないので
+	// そのまま3点を結合した三角形を返す
+	// むしろ3点でドロネー分割すると三角形が
+	// 消滅することがある
 	if(innerVtx.length == 3) {
 		return new DelaunayTriangle(points, [innerVtx[0], innerVtx[1], innerVtx[2]]);
 	}
