@@ -48,23 +48,27 @@ function mcdt(inputPoints, constraint) {
 		resultTri.addPoint(i, points, cst);
 	}
 
+	var crossCst = null;
+	var crossTri = [];
+	var rmVtx = [];
+	var resultULV = [];
+	var adjTris = [];
 	// STEP3: 辺と閉境界との交差判定
 	var resultCrossTri = mcdt.getCrossTriConstraint(points, head, cst);
-	var crossCst = resultCrossTri.crossConstraint;
-	var crossTri = resultCrossTri.crossTri;
-
+	crossCst = resultCrossTri.crossConstraint;
+	crossTri = resultCrossTri.crossTri;
 	// STEP4: 交差解消
 	// 交差三角形の頂点を抽出する
-	var rmVtx = mcdt.extractVerticesFromTri(crossTri);
-	var resultULV = mcdt.getUpperAndLowerVtx(points, cst, crossCst, rmVtx);
+	rmVtx = mcdt.extractVerticesFromTri(crossTri);
+	resultULV = mcdt.getUpperAndLowerVtx(points, cst, crossCst, rmVtx);
 	// 交差三角形の削除
-	var adjTris = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
+	adjTris = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
 	// 新しい三角形を追加する
 	if(crossCst != null) {
 		var upperHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.upperVtx, adjTris, head);
 		var lowerHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.lowerVtx, adjTris, head);
 		mcdt.updateLocalAdjacentsLU(upperHead, lowerHead);
-	}
+	} 
 
 	// STEP5: スーパートライアングルの削除
 	head = mcdt.removeSuperTriangle(head, points);
