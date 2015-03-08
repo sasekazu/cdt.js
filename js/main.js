@@ -22,9 +22,31 @@ function initEvents(canvas) {
 
 	var selectPoint = null;
 
+	function waveCircle() {
+		var inputPoints = [];
+		var constraint = [];
+		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
+		var rad = 0.3 * canvasHeight;
+		var innerRad = 0.4 * rad;
+		var thDiv = 50;
+		var numWave = 5;
+		var th;
+		var r;
+		for(var i = 0; i < thDiv; ++i) {
+			th = 2 * Math.PI / thDiv * i;
+			r = rad + innerRad * Math.sin(numWave * th);
+			inputPoints.push([center[0] + r * Math.cos(th), center[1] + r * Math.sin(th)]);
+		}
+		for(var j = 0; j < inputPoints.length; ++j) {
+			constraint.push(j);
+		}
+		constraint.push(0);
+		return { points: inputPoints, constraint: constraint };
+	}
 
-	inputPoints = [[140, 265], [566, 259], [154, 26], [344, 184], [63, 138]];
-	constraint = [0, 1, 2, 3, 4, 0]; 
+	var waveResult = waveCircle();
+	inputPoints = waveResult.points;
+	constraint = waveResult.constraint;
 
 	draw();
 
@@ -108,6 +130,11 @@ function initEvents(canvas) {
 		head = [];
 		constraint = [];
 		selectPoint = null;
+
+		var waveResult = waveCircle();
+		inputPoints = waveResult.points;
+		constraint = waveResult.constraint;
+
 		draw();
 	});
 
@@ -118,12 +145,10 @@ function initEvents(canvas) {
 		var context = canvas.get(0).getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
 
-
-		console.log(""+inputPoints);
-		console.log(""+constraint);
+		//console.log(""+inputPoints);
+		//console.log(""+constraint);
 
 		// 三角形分割
-
 		if(false) {
 			var result2 = delaunayTriangulation(inputPoints);
 			drawResult(result2, context, constraint, inputPoints);
@@ -231,8 +256,6 @@ function initEvents(canvas) {
 			var crossID = crossCnst;
 			var pointID = constraint[crossID];
 			var pointID2 = constraint[crossID + 1];
-			console.log("pointID1 " + pointID);
-			console.log("pointID2 " + pointID2);
 			context.moveTo(inputPoints[pointID][0], inputPoints[pointID][1]);
 			context.lineTo(inputPoints[pointID2][0], inputPoints[pointID2][1]);
 			context.stroke();
@@ -390,8 +413,8 @@ function drawAdjacents(canvas, points, head) {
 			console.log("removed が　混じってるぞ");
 			continue;
 		}
-		//		context.strokeStyle = 'skyblue';
-		context.strokeStyle = 'blue';
+		context.strokeStyle = 'skyblue';
+		//context.strokeStyle = 'blue';
 		v1 = mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
 		v1 = mcdt.div(mcdt.add(v1, points[tri.vertexID[2]]), 3);
 		for(var j = 0; j < 3; ++j) {
@@ -402,17 +425,18 @@ function drawAdjacents(canvas, points, head) {
 				continue;
 			}
 
-			/*
+			// ボロノイ図的な図の描画のため
 			v2 = mcdt.add(points[tri.adjacent[j].vertexID[0]], points[tri.adjacent[j].vertexID[1]]);
 			v2 = mcdt.div(mcdt.add(v2, points[tri.adjacent[j].vertexID[2]]), 3);
 			v12 = mcdt.sub(v2, v1);
 			v12 = mcdt.mul(0.48, v12);
 			edgeMid = mcdt.add(v1, v12);
-			*/
 
 			// 隣接三角形の辺の中点
+			/*
 			edgeMid = mcdt.add(points[tri.adjacent[j].vertexID[tri.edgeIDinAdjacent[j]]], points[tri.adjacent[j].vertexID[(tri.edgeIDinAdjacent[j] + 1) % 3]]);
 			edgeMid = mcdt.mul(edgeMid, 0.5);
+			*/
 
 			context.beginPath();
 			context.moveTo(v1[0], v1[1]);

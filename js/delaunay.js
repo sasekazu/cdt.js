@@ -25,11 +25,9 @@ function mcdt(inputPoints, constraint) {
 	// 閉境界は cst[0]=cst[length-1] となるようにする
 	var points = mcdt.clone(inputPoints);
 	var cst = mcdt.clone(constraint);
-	/*
 	if(cst[0] != cst[cst.length - 1]) {
 		cst.push(cst[0]);
 	}
-	*/
 
 	// STEP1: スーパートライアングルの作成
 	// すべての点を内包する
@@ -51,34 +49,70 @@ function mcdt(inputPoints, constraint) {
 		resultTri.addPoint(i, points, cst);
 	}
 
+	// STEP3: 辺と閉境界との交差判定と交差解消
 	var crossCst = null;
 	var crossTri = [];
 	var rmVtx = [];
 	var resultULV = [];
 	var adjTris = [];
-	// STEP3: 辺と閉境界との交差判定
-	var resultCrossTri = mcdt.getCrossTriConstraint(points, head, cst);
-	crossCst = resultCrossTri.crossConstraint;
-	crossTri = resultCrossTri.crossTri;
-	// STEP4: 交差解消
-	// 交差三角形の頂点を抽出する
-	rmVtx = mcdt.extractVerticesFromTri(crossTri);
-	resultULV = mcdt.getUpperAndLowerVtx(points, cst, crossCst, rmVtx);
-	// 交差三角形の削除
-	var rmTriResult = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
-	adjTris = rmTriResult.adjTris;
-	head = rmTriResult.head;
-	// 新しい三角形を追加する
-	if(crossCst != null) {
-		// TO DO: この内部で行われているドロネー分割で
-		//        非凸形状の分割をサポートする必要あり
-		var upperHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.upperVtx, adjTris, head);
-		var lowerHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.lowerVtx, adjTris, head);
-		mcdt.updateLocalAdjacentsLU(upperHead, lowerHead);
-	} 
+	var itrCount = 0;
+	while(1) {
+		if(itrCount > points.length) {
+			console.log("max iteration at mcdt()");
+			break;
+		}
+		// 辺と閉境界との交差判定
+		var resultCrossTri = mcdt.getCrossTriConstraint(points, head, cst);
+		crossCst = resultCrossTri.crossConstraint;
+		crossTri = resultCrossTri.crossTri;
+		// 交差三角形頂点の抽出
+		rmVtx = mcdt.extractVerticesFromTri(crossTri);
+		resultULV = mcdt.getUpperAndLowerVtx(points, cst, crossCst, rmVtx);
+		// 交差三角形の削除
+		var rmTriResult = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
+		adjTris = rmTriResult.adjTris;
+		head = rmTriResult.head;
+		// 新しい三角形の追加
+		if(crossCst != null) {
+			// TO DO: この内部で行われているドロネー分割で
+			//        非凸形状の分割をサポートする必要あり
+			var upperHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.upperVtx, adjTris, head);
+			var lowerHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.lowerVtx, adjTris, head);
+			mcdt.updateLocalAdjacentsLU(upperHead, lowerHead);
+		} else {
+			break;
+		}
+		++itrCount;
+	}
 
-	// STEP5: スーパートライアングルの削除
-	//head = mcdt.removeSuperTriangle(head, points);
+	// STEP4: スーパートライアングルの削除
+	head = mcdt.removeSuperTriangle(head, points);
+
+	// STEP5: 境界の内外判定と外部三角形の削除
+	// 谷口，FEMのための要素自動分割，P35の内外判定法を用いる
+	var cstVtxID = new Array(3);
+	var signs = new Array(3);
+	var trinext;
+	for(var tri = head; tri != null; tri = trinext) {
+		cstVtxID = [null, null, null];
+		// 頂点IDの境界線におけるIDを取得
+		for(var i = 0; i < 3; ++i) {
+			for(var j = 0; j < cst.length - 1; ++j) {
+				if(tri.vertexID[i] == cst[j]) {
+					cstVtxID[i] = cst[j];
+					break;
+				}
+			}
+		}
+		for(var i = 0; i < 3; ++i) {
+			signs[i] = cstVtxID[(i + 1) % 3] - cstVtxID[i];
+		}
+		trinext = tri.next;
+		if(signs[0]*signs[1]*signs[2]>0) {
+			head = tri.remove(head);
+		}
+	}
+
 
 	// 三角形接続リストの作成
 	var conn = [];
@@ -267,8 +301,6 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 	for(var i = 0; i < innerPoints.length; ++i) {
 		innerPoints[i] = mcdt.clone(points[innerVtx[i]]);
 	}
-	console.log("innerPoints");
-	console.log("" + innerPoints);
 
 
 
