@@ -65,7 +65,9 @@ function mcdt(inputPoints, constraint) {
 	rmVtx = mcdt.extractVerticesFromTri(crossTri);
 	resultULV = mcdt.getUpperAndLowerVtx(points, cst, crossCst, rmVtx);
 	// 交差三角形の削除
-	adjTris = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
+	var rmTriResult = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
+	adjTris = rmTriResult.adjTris;
+	head = rmTriResult.head;
 	// 新しい三角形を追加する
 	if(crossCst != null) {
 		// TO DO: この内部で行われているドロネー分割で
@@ -76,7 +78,7 @@ function mcdt(inputPoints, constraint) {
 	} 
 
 	// STEP5: スーパートライアングルの削除
-	head = mcdt.removeSuperTriangle(head, points);
+	//head = mcdt.removeSuperTriangle(head, points);
 
 	// 三角形接続リストの作成
 	var conn = [];
@@ -168,7 +170,7 @@ mcdt.removeCrossTriAndExtractOuterEdge = function (crossTri, head) {
 			adjTris.push(adjTriAll[i]);
 		}
 	}
-	return adjTris;
+	return { adjTris: adjTris, head: head };
 }
 
 

@@ -23,8 +23,8 @@ function initEvents(canvas) {
 	var selectPoint = null;
 
 
-	inputPoints = [[161, 218], [203, 221], [252, 220], [277, 219]];
-	constraint = [0, 1, 2, 3, 0]; 
+	inputPoints = [[140, 265], [566, 259], [154, 26], [344, 184], [63, 138]];
+	constraint = [0, 1, 2, 3, 4, 0]; 
 
 	draw();
 
@@ -124,11 +124,15 @@ function initEvents(canvas) {
 
 		// 三角形分割
 
-		//var result2 = delaunayTriangulation(inputPoints);
-		//drawResult(result2, context, constraint, inputPoints);
+		if(false) {
+			var result2 = delaunayTriangulation(inputPoints);
+			drawResult(result2, context, constraint, inputPoints);
+		}
 
-		var result = mcdt(inputPoints, constraint);
-		drawResult(result, context, constraint, inputPoints);
+		if(true) {
+			var result = mcdt(inputPoints, constraint);
+			drawResult(result, context, constraint, inputPoints);
+		}
 
 
 	}
@@ -237,7 +241,8 @@ function initEvents(canvas) {
 
 		// 三角形の描画
 		context.strokeStyle = 'black';
-		//		drawTrianglesFromHead(canvas, points, head);
+		drawTrianglesFromHead(canvas, points, head);
+		/*
 		for(var i = 0; i < conn.length; ++i) {
 			context.beginPath();
 			context.moveTo(points[conn[i][0]][0], points[conn[i][0]][1]);
@@ -246,6 +251,7 @@ function initEvents(canvas) {
 			context.lineTo(points[conn[i][0]][0], points[conn[i][0]][1]);
 			context.stroke();
 		}
+		*/
 
 		// 点の描画
 		context.fillStyle = 'black';
@@ -395,11 +401,19 @@ function drawAdjacents(canvas, points, head) {
 			if(tri.adjacent[j].adjacent[tri.edgeIDinAdjacent[j]]!==tri){
 				continue;
 			}
+
+			/*
 			v2 = mcdt.add(points[tri.adjacent[j].vertexID[0]], points[tri.adjacent[j].vertexID[1]]);
 			v2 = mcdt.div(mcdt.add(v2, points[tri.adjacent[j].vertexID[2]]), 3);
 			v12 = mcdt.sub(v2, v1);
 			v12 = mcdt.mul(0.48, v12);
 			edgeMid = mcdt.add(v1, v12);
+			*/
+
+			// 隣接三角形の辺の中点
+			edgeMid = mcdt.add(points[tri.adjacent[j].vertexID[tri.edgeIDinAdjacent[j]]], points[tri.adjacent[j].vertexID[(tri.edgeIDinAdjacent[j] + 1) % 3]]);
+			edgeMid = mcdt.mul(edgeMid, 0.5);
+
 			context.beginPath();
 			context.moveTo(v1[0], v1[1]);
 			context.lineTo(edgeMid[0], edgeMid[1]);
