@@ -22,6 +22,10 @@ function initEvents(canvas) {
 
 	var selectPoint = null;
 
+
+	inputPoints = [[161, 218], [203, 221], [252, 220], [277, 219]];
+	constraint = [0, 1, 2, 3, 0]; 
+
 	draw();
 
 	// mouseクリック時のイベントコールバック設定
@@ -114,8 +118,22 @@ function initEvents(canvas) {
 		var context = canvas.get(0).getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
 
+
+		console.log(""+inputPoints);
+		console.log(""+constraint);
+
 		// 三角形分割
+
+		//var result2 = delaunayTriangulation(inputPoints);
+		//drawResult(result2, context, constraint, inputPoints);
+
 		var result = mcdt(inputPoints, constraint);
+		drawResult(result, context, constraint, inputPoints);
+
+
+	}
+
+	function drawResult(result, context, constraint, inputPoints) {
 		if(result == null) {
 			// 点の描画
 			context.fillStyle = 'black';
@@ -138,6 +156,9 @@ function initEvents(canvas) {
 		context.fillStyle = 'pink';
 		for(var i = 0; i < crossTri.length; ++i) {
 			for(var j = 0; j < crossTri[i].length; ++j) {
+				if(crossTri[i][j].isRemoved) {
+					continue;
+				}
 				context.beginPath();
 				context.moveTo(points[crossTri[i][j].vertexID[0]][0], points[crossTri[i][j].vertexID[0]][1]);
 				context.lineTo(points[crossTri[i][j].vertexID[1]][0], points[crossTri[i][j].vertexID[1]][1]);
@@ -154,6 +175,11 @@ function initEvents(canvas) {
 			if(adjTris[i].isRemoved) {
 				continue;
 			}
+			if(adjTris[i].vertexID[0] > points.length
+				|| adjTris[i].vertexID[1] > points.length
+				|| adjTris[i].vertexID[2] > points.length) {
+				continue;
+			}
 			context.beginPath();
 			context.moveTo(points[adjTris[i].vertexID[0]][0], points[adjTris[i].vertexID[0]][1]);
 			context.lineTo(points[adjTris[i].vertexID[1]][0], points[adjTris[i].vertexID[1]][1]);
@@ -162,21 +188,22 @@ function initEvents(canvas) {
 			context.fill();
 		}
 
-
 		// 隣接関係の描画
 		drawAdjacents(canvas, points, head);
 
 
 		// 三角形headの描画
-		context.globalAlpha = 0.2;
-		context.fillStyle = 'gray';
-		context.beginPath();
-		context.moveTo(points[head.vertexID[0]][0], points[head.vertexID[0]][1]);
-		context.lineTo(points[head.vertexID[1]][0], points[head.vertexID[1]][1]);
-		context.lineTo(points[head.vertexID[2]][0], points[head.vertexID[2]][1]);
-		context.lineTo(points[head.vertexID[0]][0], points[head.vertexID[0]][1]);
-		context.fill();
-		context.globalAlpha = 1;
+		if(head != null) {
+			context.globalAlpha = 0.2;
+			context.fillStyle = 'gray';
+			context.beginPath();
+			context.moveTo(points[head.vertexID[0]][0], points[head.vertexID[0]][1]);
+			context.lineTo(points[head.vertexID[1]][0], points[head.vertexID[1]][1]);
+			context.lineTo(points[head.vertexID[2]][0], points[head.vertexID[2]][1]);
+			context.lineTo(points[head.vertexID[0]][0], points[head.vertexID[0]][1]);
+			context.fill();
+			context.globalAlpha = 1;
+		}
 
 		// 拘束辺の描画
 		context.strokeStyle = 'lightgreen';
@@ -200,6 +227,8 @@ function initEvents(canvas) {
 			var crossID = crossCnst;
 			var pointID = constraint[crossID];
 			var pointID2 = constraint[crossID + 1];
+			console.log("pointID1 " + pointID);
+			console.log("pointID2 " + pointID2);
 			context.moveTo(inputPoints[pointID][0], inputPoints[pointID][1]);
 			context.lineTo(inputPoints[pointID2][0], inputPoints[pointID2][1]);
 			context.stroke();
@@ -226,9 +255,13 @@ function initEvents(canvas) {
 		context.fillStyle = 'red';
 		var rmPoints = [];
 		for(var i = 0; i < result.rmVtx.length; ++i) {
+			if(result.rmVtx[i] >= points.length) {
+				continue;
+			}
 			rmPoints.push(points[result.rmVtx[i]]);
 		}
 		drawPoints(canvas, rmPoints, 2);
+
 		/*
 		// upperVtx
 		context.fillStyle='purple';
@@ -344,19 +377,32 @@ function drawAdjacents(canvas, points, head) {
 	var context = canvas.get(0).getContext("2d");
 	var v1 = [];
 	var v2 = [];
+	var v12 = [];
+	var edgeMid = [];
 	for(var tri = head; tri != null; tri = tri.next) {
-		context.strokeStyle = 'skyblue';
+		if(tri.isRemoved) {
+			console.log("removed が　混じってるぞ");
+			continue;
+		}
+		//		context.strokeStyle = 'skyblue';
+		context.strokeStyle = 'blue';
 		v1 = mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
 		v1 = mcdt.div(mcdt.add(v1, points[tri.vertexID[2]]), 3);
 		for(var j = 0; j < 3; ++j) {
 			if(tri.adjacent[j] == null) {
 				continue;
 			}
+			if(tri.adjacent[j].adjacent[tri.edgeIDinAdjacent[j]]!==tri){
+				continue;
+			}
 			v2 = mcdt.add(points[tri.adjacent[j].vertexID[0]], points[tri.adjacent[j].vertexID[1]]);
 			v2 = mcdt.div(mcdt.add(v2, points[tri.adjacent[j].vertexID[2]]), 3);
+			v12 = mcdt.sub(v2, v1);
+			v12 = mcdt.mul(0.48, v12);
+			edgeMid = mcdt.add(v1, v12);
 			context.beginPath();
 			context.moveTo(v1[0], v1[1]);
-			context.lineTo(v2[0], v2[1]);
+			context.lineTo(edgeMid[0], edgeMid[1]);
 			context.stroke();
 		}
 	}

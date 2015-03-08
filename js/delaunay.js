@@ -2,6 +2,8 @@
 /// <reference path="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" />
 
 
+
+
 // ドロネー三角形分割関数
 // 引数 inputPoints: 入力点の座標 [[x1,y1],[x2,y2],....]
 // 引数 ymax, ymin, xmax, xmin: 入力点が含まれる領域の最大・最小座標
@@ -22,11 +24,12 @@ function mcdt(inputPoints, constraint) {
 	// 頂点座標群と閉境界のデータコピーと整形
 	// 閉境界は cst[0]=cst[length-1] となるようにする
 	var points = mcdt.clone(inputPoints);
-	var cst = mcdt.clone(constraint);		
+	var cst = mcdt.clone(constraint);
+	/*
 	if(cst[0] != cst[cst.length - 1]) {
 		cst.push(cst[0]);
 	}
-
+	*/
 
 	// STEP1: スーパートライアングルの作成
 	// すべての点を内包する
@@ -65,6 +68,8 @@ function mcdt(inputPoints, constraint) {
 	adjTris = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
 	// 新しい三角形を追加する
 	if(crossCst != null) {
+		// TO DO: この内部で行われているドロネー分割で
+		//        非凸形状の分割をサポートする必要あり
 		var upperHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.upperVtx, adjTris, head);
 		var lowerHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.lowerVtx, adjTris, head);
 		mcdt.updateLocalAdjacentsLU(upperHead, lowerHead);
@@ -80,7 +85,7 @@ function mcdt(inputPoints, constraint) {
 	}
 
 	return {
-		points: inputPoints,
+		points: points,
 		head: head,
 		crossConstraint: crossCst,
 		crossTris: [crossTri],
@@ -89,6 +94,55 @@ function mcdt(inputPoints, constraint) {
 		upperVtx: resultULV.upperVtx,
 		lowerVtx: resultULV.lowerVtx,
 		adjTris: adjTris
+	};
+}
+
+
+
+function delaunayTriangulation(inputPoints) {
+
+	// 入力点がない場合、強制終了
+	if(inputPoints.length < 3) {
+		return null;
+	}
+	// 頂点座標群と閉境界のデータコピーと整形
+	// 閉境界は cst[0]=cst[length-1] となるようにする
+	var points = mcdt.clone(inputPoints);
+
+	// STEP1: スーパートライアングルの作成
+	var superTri = mcdt.getSuperTriangle(points);
+	points.push(superTri[0]);
+	points.push(superTri[1]);
+	points.push(superTri[2]);
+	var l = points.length;
+	var head = new DelaunayTriangle(points, [l - 3, l - 2, l - 1]);
+
+	// STEP2: 点の逐次追加
+	var resultTri = head;
+	for(var i = 0; i < points.length - 3; ++i) {
+		resultTri = DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
+		resultTri.addPoint(i, points);
+	}
+
+	// STEP5: スーパートライアングルの削除
+	//head = mcdt.removeSuperTriangle(head, points);
+
+	// 三角形接続リストの作成
+	var conn = [];
+	for(var tri = head; tri != null; tri = tri.next) {
+		conn.push(tri.vertexID);
+	}
+
+	return {
+		points: points,
+		head: head,
+		crossConstraint: null,
+		crossTris: [],
+		connectivity: conn,
+		rmVtx: [],
+		upperVtx: [],
+		lowerVtx: [],
+		adjTris: []
 	};
 }
 
@@ -107,6 +161,9 @@ mcdt.removeCrossTriAndExtractOuterEdge = function (crossTri, head) {
 	// 隣接三角形のうち削除されていないものを残す
 	var adjTris = [];
 	for(var i = 0; i < adjTriAll.length; ++i) {
+		if(adjTriAll[i] == null) {
+			continue;
+		}
 		if(!adjTriAll[i].isRemoved) {
 			adjTris.push(adjTriAll[i]);
 		}
@@ -125,16 +182,26 @@ mcdt.addInnerVetices = function (points, cst, crossConstraint, localVtx, adjTris
 	}
 	localVtx.sort(ccw);
 	var localHead = mcdt.innerTriangulation(points, localVtx);
-	mcdt.updateLocalAdjacents(localHead, adjTris);
-	var tail = mcdt.getTail(head);
-	tail.next = localHead;
-	localHead.prev = tail;
+	if(localHead != null) {
+		mcdt.updateLocalAdjacents(localHead, adjTris);
+		var tail = mcdt.getTail(head);
+		tail.next = localHead;
+		localHead.prev = tail;
+	}
 	return localHead;
 }
 
 
 // upper三角形群とlower三角形群の隣接関係を更新する
 mcdt.updateLocalAdjacentsLU = function (upperHead, lowerHead) {
+	if(upperHead == null) {
+		console.log("upperHead is null");
+		return;
+	}
+	if(lowerHead == null) {
+		console.log("lowerHead is null");
+		return;
+	}
 	var adjTris = [];
 	for(var tri = lowerHead; tri != null; tri = tri.next) {
 		adjTris.push(tri);
@@ -171,8 +238,6 @@ mcdt.updateLocalAdjacents = function (localHead, adjTris) {
 }
 
 
-
-
 mcdt.getTail = function (head) {
 	var tail = head;
 	while(1) {
@@ -200,6 +265,11 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 	for(var i = 0; i < innerPoints.length; ++i) {
 		innerPoints[i] = mcdt.clone(points[innerVtx[i]]);
 	}
+	console.log("innerPoints");
+	console.log("" + innerPoints);
+
+
+
 	// innerVtxが輪郭の辺に沿ってCCWで格納されている
 	// ことを想定するため
 	// constraintは [0, 1, 2, ...] となる
@@ -536,9 +606,6 @@ DelaunayTriangle.prototype.remove = function (head) {
 	if(this.prev != null) {
 		this.prev.next = this.next;
 	}
-	if(this.prev != null) {
-		this.next = null;
-	}
 	this.prev = null;
 
 	// もし削除する三角形がheadならば
@@ -546,6 +613,7 @@ DelaunayTriangle.prototype.remove = function (head) {
 	if(this === head) {
 		head = this.next;
 	}
+	this.next = null;
 	this.isRemoved = true;
 	return head;
 }
