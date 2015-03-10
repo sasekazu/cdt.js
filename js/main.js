@@ -22,13 +22,32 @@ function initEvents(canvas) {
 
 	var selectPoint = null;
 
+	function circle() {
+		var inputPoints = [];
+		var constraint = [];
+		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
+		var r = 0.1 * canvasHeight;
+		var thDiv = 20;
+		var th;
+		for(var i = 0; i < thDiv; ++i) {
+			th = 2 * Math.PI / thDiv * i;
+			inputPoints.push([center[0] + r * Math.cos(th), center[1] + r * Math.sin(th)]);
+		}
+		for(var j = 0; j < inputPoints.length; ++j) {
+			constraint.push(j);
+		}
+		constraint.push(0);
+		return { points: inputPoints, constraint: constraint };
+	}
+
+
 	function waveCircle() {
 		var inputPoints = [];
 		var constraint = [];
 		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
 		var rad = 0.3 * canvasHeight;
 		var innerRad = 0.4 * rad;
-		var thDiv = 20;
+		var thDiv = 50;
 		var numWave = 5;
 		var th;
 		var r;
@@ -44,18 +63,18 @@ function initEvents(canvas) {
 		return { points: inputPoints, constraint: constraint };
 	}
 
-	/*
 	var waveResult = waveCircle();
 	inputPoints = waveResult.points;
-	constraint = waveResult.constraint;
-	*/
+	constraint = [waveResult.constraint];
+	
 
-	inputPoints = [[419.73333279999997, 199.833333], [459.4776795590086, 251.70492558925392], [396.8344704637528, 270.3087846323105], [342.11860397938625, 258.0340154782517], [336.88447056375276, 313.86500911357757], [299.833333, 367.69333272000006], [262.7821954362472, 313.8650091135776], [257.5480620206137, 258.0340154782517], [202.8321955362472, 270.3087846323105], [140.18898644099133, 251.70492558925395], [179.93333319999994, 199.83333300000004], [231.41432733185343, 177.60265046174834], [202.83219553624718, 129.35788136768957], [201.1677007147653, 64.0317405507461], [262.78219543624715, 85.80165688642236], [299.833333, 127.89333312000001], [336.88447056375276, 85.80165688642244], [272, 269], [396.83447046375284, 129.35788136768946], [368.25233866814654, 177.6026504617483]];
-	constraint = [];
-	for(var j = 0; j < inputPoints.length; ++j) {
-		constraint.push(j);
+	var circleResult = circle();
+	inputPoints = inputPoints.concat(circleResult.points);
+	var cst = [];
+	for(var i = 0; i < circleResult.constraint.length; ++i) {
+		cst.push(waveResult.points.length+circleResult.constraint[i]);
 	}
-	constraint.push(0);
+	constraint.push(cst);
 
 	draw();
 
@@ -248,13 +267,15 @@ function initEvents(canvas) {
 		context.strokeStyle = 'lightgreen';
 		context.lineWidth = 6;
 		context.beginPath();
-		if(constraint.length != 0) {
-			context.moveTo(inputPoints[constraint[0]][0], inputPoints[constraint[0]][1]);
+		for(var j = 0; j < constraint.length; ++j) {
+			if(constraint[j].length != 0) {
+				context.moveTo(inputPoints[constraint[j][0]][0], inputPoints[constraint[j][0]][1]);
+			}
+			for(var i = 1; i < constraint[j].length; ++i) {
+				context.lineTo(inputPoints[constraint[j][i]][0], inputPoints[constraint[j][i]][1]);
+			}
+			context.stroke();
 		}
-		for(var i = 1; i < constraint.length; ++i) {
-			context.lineTo(inputPoints[constraint[i]][0], inputPoints[constraint[i]][1]);
-		}
-		context.stroke();
 		context.lineWidth = 1;
 
 		// 拘束に失敗している辺の描画
@@ -264,8 +285,8 @@ function initEvents(canvas) {
 			context.lineWidth = 6;
 			context.beginPath();
 			var crossID = crossCnst;
-			var pointID = constraint[crossID];
-			var pointID2 = constraint[crossID + 1];
+			var pointID = constraint[crossCnst[0]][crossCnst[1]];
+			var pointID2 = constraint[crossCnst[0]][crossCnst[1] + 1];
 			context.moveTo(inputPoints[pointID][0], inputPoints[pointID][1]);
 			context.lineTo(inputPoints[pointID2][0], inputPoints[pointID2][1]);
 			context.stroke();

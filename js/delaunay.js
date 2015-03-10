@@ -25,8 +25,10 @@ function mcdt(inputPoints, constraint) {
 	// 閉境界は cst[0]=cst[length-1] となるようにする
 	var points = mcdt.clone(inputPoints);
 	var cst = mcdt.clone(constraint);
-	if(cst[0] != cst[cst.length - 1]) {
-		cst.push(cst[0]);
+	for(var i = 0; i < cst.length; ++i) {
+		if(cst[i][0] != cst[i][cst[i].length - 1]) {
+			cst[i].push(cst[i][0]);
+		}
 	}
 
 	// STEP1: スーパートライアングルの作成
@@ -87,7 +89,7 @@ function mcdt(inputPoints, constraint) {
 	head = mcdt.removeSuperTriangle(head, points);
 
 	// STEP5: 境界の内外判定と外部三角形の削除
-	head = mcdt.removeOuterTriangles(head, cst);
+	//head = mcdt.removeOuterTriangles(head, cst);
 
 
 	// 三角形接続リストの作成
@@ -184,9 +186,9 @@ mcdt.removeCrossTriAndExtractOuterEdge = function (crossTri, head) {
 }
 
 
-mcdt.addInnerVetices = function (points, cst, crossConstraint, localVtx, adjTris, head) {
+mcdt.addInnerVetices = function (points, cst, crossCst, localVtx, adjTris, head) {
 	// localVtxを辺中点にたいして反時計回りになるように並べ替え
-	var midpoint = mcdt.mul(0.5, mcdt.add(points[cst[crossConstraint + 1]], points[cst[crossConstraint]]));
+	var midpoint = mcdt.mul(0.5, mcdt.add(points[cst[crossCst[0]][crossCst[1] + 1]], points[cst[crossCst[0]][crossCst[1]]]));
 	var ccw = function (val1, val2) {
 		th1 = Math.atan2(points[val1][1] - midpoint[1], points[val1][0] - midpoint[0]);
 		th2 = Math.atan2(points[val2][1] - midpoint[1], points[val2][0] - midpoint[0]);
@@ -350,27 +352,27 @@ mcdt.removeOuterTriangles = function (head, cst) {
 }
 
 
-// crossConstraint番目のcstで定義される辺ベクトルで
+// cstで定義される辺ベクトルで
 // 頂点群vtxを分割し，upperVtx, lowerVtxに分ける
 // 辺ベクトル上の頂点は両方に含まれる
-mcdt.getUpperAndLowerVtx = function (points, cst, crossConstraint, vtx) {
+mcdt.getUpperAndLowerVtx = function (points, cst, crossCst, vtx) {
 	var upperVtx = [];
 	var lowerVtx = [];
-	if(crossConstraint != null) {
-		var cstVec = mcdt.sub(points[cst[crossConstraint + 1]], points[cst[crossConstraint]]);
+	if(crossCst != null) {
+		var cstVec = mcdt.sub(points[cst[crossCst[0]][crossCst[1] + 1]], points[cst[crossCst[0]][crossCst[1]]]);
 		var vtxVec;
 		for(var i = 0; i < vtx.length; ++i) {
-			vtxVec = mcdt.sub(points[vtx[i]], points[cst[crossConstraint]]);
+			vtxVec = mcdt.sub(points[vtx[i]], points[cst[crossCst[0]][crossCst[1]]]);
 			if(cstVec[0] * vtxVec[1] - cstVec[1] * vtxVec[0] > 0) {
 				upperVtx.push(vtx[i]);
 			} else if(cstVec[0] * vtxVec[1] - cstVec[1] * vtxVec[0] < 0) {
 				lowerVtx.push(vtx[i]);
 			}
 		}
-		upperVtx.push(cst[crossConstraint + 1]);
-		upperVtx.push(cst[crossConstraint]);
-		lowerVtx.push(cst[crossConstraint + 1]);
-		lowerVtx.push(cst[crossConstraint]);
+		upperVtx.push(cst[crossCst[0]][crossCst[1] + 1]);
+		upperVtx.push(cst[crossCst[0]][crossCst[1]]);
+		lowerVtx.push(cst[crossCst[0]][crossCst[1] + 1]);
+		lowerVtx.push(cst[crossCst[0]][crossCst[1]]);
 	}
 	return { upperVtx: upperVtx, lowerVtx: lowerVtx };
 }
@@ -382,11 +384,13 @@ mcdt.getCrossTriConstraint = function (points, head, cst) {
 	var pointToTri = mcdt.makePointToTri(points, head);
 	var crossConstraint = null;
 	var crossTri = [];
-	for(var i = 0; i < cst.length - 1; ++i) {
-		crossTri = mcdt.isEdgeCross(points, pointToTri, cst, i);
-		if(crossTri.length > 0) {
-			crossConstraint = i;
-			break;
+	for(var i = 0; i < cst.length; ++i) {
+		for(var j = 0; j < cst.length - 1; ++j) {
+			crossTri = mcdt.isEdgeCross(points, pointToTri, cst[i], j);
+			if(crossTri.length > 0) {
+				crossConstraint = [i, j];
+				break;
+			}
 		}
 	}
 	return { crossTri: crossTri, crossConstraint: crossConstraint };
@@ -450,6 +454,7 @@ mcdt.removeSuperTriangle = function (head, points) {
 
 
 // i番目の拘束辺の交差判定
+// 注意, 引数のcstは一つの境界 [境界頂点1のID, 境界頂点2のID, ...]
 mcdt.isEdgeCross = function (points, pointToTri, cst, i) {
 	var edgePos = [points[cst[i]], points[cst[i + 1]]];	// 辺の始点・終点の座標 [[始点],[終点]]
 	// 拘束辺の始点を含む三角形についてのループ
@@ -786,11 +791,13 @@ DelaunayTriangle.swapping = function (stack, newPointID, points, constraint) {
 	var p1, p2, c1, c2;
 	p1 = tri.vertexID[oppEdgeTri];
 	p2 = tri.vertexID[(oppEdgeTri + 1) % 3];
-	for(var i = 0; i < constraint.length - 1; ++i) {
-		c1 = constraint[i];
-		c2 = constraint[i + 1];
-		if((p1 == c1 && p2 == c2) || (p1 == c2 && p2 == c1)) {
-			return;
+	for(var i = 0; i < constraint.length ; ++i) {
+		for(var j = 0; j < constraint[i].length - 1; ++j) {
+			c1 = constraint[i][j];
+			c2 = constraint[i][j + 1];
+			if((p1 == c1 && p2 == c2) || (p1 == c2 && p2 == c1)) {
+				return;
+			}
 		}
 	}
 
