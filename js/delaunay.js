@@ -52,32 +52,32 @@ function mcdt(inputPoints, constraint) {
 	}
 
 	// STEP3: 辺と閉境界との交差判定と交差解消
-	var crossCst = null;
+	var crossEdge = null;
 	var crossTri = [];
 	var rmVtx = [];
 	var resultULV = [];
 	var adjTris = [];
 	var itrCount = 0;
 	while(1) {
-		if(itrCount > points.length) {
+		if(itrCount > 2*points.length) {
 		console.log("max iteration at mcdt()");
 			break;
 		}
 		// 辺と閉境界との交差判定
 		var resultCrossTri = mcdt.getCrossTriConstraint(points, head, cst);
-		crossCst = resultCrossTri.crossConstraint;
+		crossEdge = resultCrossTri.crossEdge;
 		crossTri = resultCrossTri.crossTri;
 		// 交差三角形頂点の抽出
 		rmVtx = mcdt.extractVerticesFromTri(crossTri);
-		resultULV = mcdt.getUpperAndLowerVtx(points, cst, crossCst, rmVtx);
+		resultULV = mcdt.getUpperAndLowerVtx(points, crossEdge, rmVtx);
 		// 交差三角形の削除
 		var rmTriResult = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
 		adjTris = rmTriResult.adjTris;
 		head = rmTriResult.head;
 		// 新しい三角形の追加
-		if(crossCst != null) {
-			var upperHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.upperVtx, adjTris, head);
-			var lowerHead = mcdt.addInnerVetices(points, cst, crossCst, resultULV.lowerVtx, adjTris, head);
+		if(crossEdge != null) {
+			var upperHead = mcdt.addInnerVetices(points, crossEdge, resultULV.upperVtx, adjTris, head);
+			var lowerHead = mcdt.addInnerVetices(points, crossEdge, resultULV.lowerVtx, adjTris, head);
 			mcdt.updateLocalAdjacentsLU(upperHead, lowerHead);
 		} else {
 			break;
@@ -101,7 +101,7 @@ function mcdt(inputPoints, constraint) {
 	return {
 		points: points,
 		head: head,
-		crossConstraint: crossCst,
+		crossEdge: crossEdge,
 		crossTris: [crossTri],
 		connectivity: conn,
 		rmVtx: rmVtx,
@@ -186,9 +186,9 @@ mcdt.removeCrossTriAndExtractOuterEdge = function (crossTri, head) {
 }
 
 
-mcdt.addInnerVetices = function (points, cst, crossCst, localVtx, adjTris, head) {
+mcdt.addInnerVetices = function (points, crossEdge, localVtx, adjTris, head) {
 	// localVtxを辺中点にたいして反時計回りになるように並べ替え
-	var midpoint = mcdt.mul(0.5, mcdt.add(points[cst[crossCst[0]][crossCst[1] + 1]], points[cst[crossCst[0]][crossCst[1]]]));
+	var midpoint = mcdt.mul(0.5, mcdt.add(points[crossEdge[0]], points[crossEdge[1]]));
 	var ccw = function (val1, val2) {
 		th1 = Math.atan2(points[val1][1] - midpoint[1], points[val1][0] - midpoint[0]);
 		th2 = Math.atan2(points[val2][1] - midpoint[1], points[val2][0] - midpoint[0]);
@@ -355,24 +355,24 @@ mcdt.removeOuterTriangles = function (head, cst) {
 // cstで定義される辺ベクトルで
 // 頂点群vtxを分割し，upperVtx, lowerVtxに分ける
 // 辺ベクトル上の頂点は両方に含まれる
-mcdt.getUpperAndLowerVtx = function (points, cst, crossCst, vtx) {
+mcdt.getUpperAndLowerVtx = function (points, crossEdge, vtx) {
 	var upperVtx = [];
 	var lowerVtx = [];
-	if(crossCst != null) {
-		var cstVec = mcdt.sub(points[cst[crossCst[0]][crossCst[1] + 1]], points[cst[crossCst[0]][crossCst[1]]]);
+	if(crossEdge != null) {
+		var cstVec = mcdt.sub(points[crossEdge[0]], points[crossEdge[1]]);
 		var vtxVec;
 		for(var i = 0; i < vtx.length; ++i) {
-			vtxVec = mcdt.sub(points[vtx[i]], points[cst[crossCst[0]][crossCst[1]]]);
+			vtxVec = mcdt.sub(points[vtx[i]], points[crossEdge[1]]);
 			if(cstVec[0] * vtxVec[1] - cstVec[1] * vtxVec[0] > 0) {
 				upperVtx.push(vtx[i]);
 			} else if(cstVec[0] * vtxVec[1] - cstVec[1] * vtxVec[0] < 0) {
 				lowerVtx.push(vtx[i]);
 			}
 		}
-		upperVtx.push(cst[crossCst[0]][crossCst[1] + 1]);
-		upperVtx.push(cst[crossCst[0]][crossCst[1]]);
-		lowerVtx.push(cst[crossCst[0]][crossCst[1] + 1]);
-		lowerVtx.push(cst[crossCst[0]][crossCst[1]]);
+		upperVtx.push(crossEdge[0]);
+		upperVtx.push(crossEdge[1]);
+		lowerVtx.push(crossEdge[0]);
+		lowerVtx.push(crossEdge[1]);
 	}
 	return { upperVtx: upperVtx, lowerVtx: lowerVtx };
 }
@@ -382,18 +382,18 @@ mcdt.getUpperAndLowerVtx = function (points, cst, crossCst, vtx) {
 mcdt.getCrossTriConstraint = function (points, head, cst) {
 	// 点から三角形へアクセスするためのデータ作成
 	var pointToTri = mcdt.makePointToTri(points, head);
-	var crossConstraint = null;
+	var crossEdge = null;
 	var crossTri = [];
 	for(var i = 0; i < cst.length; ++i) {
-		for(var j = 0; j < cst.length - 1; ++j) {
+		for(var j = 0; j < cst[i].length - 1; ++j) {
 			crossTri = mcdt.isEdgeCross(points, pointToTri, cst[i], j);
 			if(crossTri.length > 0) {
-				crossConstraint = [i, j];
+				crossEdge = [cst[i][j+1], cst[i][j]];
 				break;
 			}
 		}
 	}
-	return { crossTri: crossTri, crossConstraint: crossConstraint };
+	return { crossTri: crossTri, crossEdge: crossEdge };
 }
 
 

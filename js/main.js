@@ -27,7 +27,7 @@ function initEvents(canvas) {
 		var constraint = [];
 		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
 		var r = 0.1 * canvasHeight;
-		var thDiv = 20;
+		var thDiv = 3;
 		var th;
 		for(var i = 0; i < thDiv; ++i) {
 			th = 2 * Math.PI / thDiv * i;
@@ -46,8 +46,8 @@ function initEvents(canvas) {
 		var constraint = [];
 		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
 		var rad = 0.3 * canvasHeight;
-		var innerRad = 0.4 * rad;
-		var thDiv = 50;
+		var innerRad = 0 * rad;
+		var thDiv = 6;
 		var numWave = 5;
 		var th;
 		var r;
@@ -67,7 +67,6 @@ function initEvents(canvas) {
 	inputPoints = waveResult.points;
 	constraint = [waveResult.constraint];
 	
-
 	var circleResult = circle();
 	inputPoints = inputPoints.concat(circleResult.points);
 	var cst = [];
@@ -280,13 +279,12 @@ function initEvents(canvas) {
 
 		// 拘束に失敗している辺の描画
 		context.strokeStyle = 'red';
-		var crossCnst = result.crossConstraint;
-		if(crossCnst != null) {
+		var crossEdge = result.crossEdge;
+		if(crossEdge != null) {
 			context.lineWidth = 6;
 			context.beginPath();
-			var crossID = crossCnst;
-			var pointID = constraint[crossCnst[0]][crossCnst[1]];
-			var pointID2 = constraint[crossCnst[0]][crossCnst[1] + 1];
+			var pointID = crossEdge[0];
+			var pointID2 = crossEdge[1];
 			context.moveTo(inputPoints[pointID][0], inputPoints[pointID][1]);
 			context.lineTo(inputPoints[pointID2][0], inputPoints[pointID2][1]);
 			context.stroke();
