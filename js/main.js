@@ -27,7 +27,7 @@ function initEvents(canvas) {
 		var constraint = [];
 		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
 		var r = 0.1 * canvasHeight;
-		var thDiv = 3;
+		var thDiv = 30;
 		var th;
 		for(var i = 0; i < thDiv; ++i) {
 			th = 2 * Math.PI / thDiv * i;
@@ -46,8 +46,8 @@ function initEvents(canvas) {
 		var constraint = [];
 		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
 		var rad = 0.3 * canvasHeight;
-		var innerRad = 0 * rad;
-		var thDiv = 6;
+		var innerRad = 0.4 * rad;
+		var thDiv = 50;
 		var numWave = 5;
 		var th;
 		var r;
@@ -168,6 +168,7 @@ function initEvents(canvas) {
 	// 点群の生成と三角形分割
 	// レンダリングのリフレッシュを行う関数
 	function draw() {
+
 
 		var context = canvas.get(0).getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);

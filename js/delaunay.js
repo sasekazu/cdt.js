@@ -208,12 +208,8 @@ mcdt.addInnerVetices = function (points, crossEdge, localVtx, adjTris, head) {
 
 // upper三角形群とlower三角形群の隣接関係を更新する
 mcdt.updateLocalAdjacentsLU = function (upperHead, lowerHead) {
-	if(upperHead == null) {
-		console.log("upperHead is null");
-		return;
-	}
-	if(lowerHead == null) {
-		console.log("lowerHead is null");
+	if(upperHead == null || lowerHead == null) {
+		console.log("upperHead is null. upperHead:" + upperHead + " lowerHead:" + lowerHead);
 		return;
 	}
 	var adjTris = [];
@@ -374,6 +370,7 @@ mcdt.getUpperAndLowerVtx = function (points, crossEdge, vtx) {
 		lowerVtx.push(crossEdge[0]);
 		lowerVtx.push(crossEdge[1]);
 	}
+
 	return { upperVtx: upperVtx, lowerVtx: lowerVtx };
 }
 
@@ -384,13 +381,18 @@ mcdt.getCrossTriConstraint = function (points, head, cst) {
 	var pointToTri = mcdt.makePointToTri(points, head);
 	var crossEdge = null;
 	var crossTri = [];
+	var isCrossFound = false;
 	for(var i = 0; i < cst.length; ++i) {
 		for(var j = 0; j < cst[i].length - 1; ++j) {
 			crossTri = mcdt.isEdgeCross(points, pointToTri, cst[i], j);
 			if(crossTri.length > 0) {
-				crossEdge = [cst[i][j+1], cst[i][j]];
+				crossEdge = [cst[i][j + 1], cst[i][j]];
+				isCrossFound = true;
 				break;
 			}
+		}
+		if(isCrossFound) {
+			break;
 		}
 	}
 	return { crossTri: crossTri, crossEdge: crossEdge };
