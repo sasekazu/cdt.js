@@ -19,6 +19,7 @@ function initEvents(canvas) {
 	var points = [];	// 頂点の座標群
 	var head = [];	// DelaunayTriangleクラスのインスタンス配列
 	var constraint = [];	// 拘束辺
+	var holeBoundary = [];	// 穴の境界
 
 	var selectPoint = null;
 
@@ -26,7 +27,7 @@ function initEvents(canvas) {
 		var inputPoints = [];
 		var constraint = [];
 		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
-		var r = 0.1 * canvasHeight;
+		var r = 0.15 * canvasHeight;
 		var thDiv = 30;
 		var th;
 		for(var i = 0; i < thDiv; ++i) {
@@ -46,9 +47,9 @@ function initEvents(canvas) {
 		var constraint = [];
 		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
 		var rad = 0.3 * canvasHeight;
-		var innerRad = 0.4 * rad;
+		var innerRad = 0.1 * rad;
 		var thDiv = 150;
-		var numWave = 5;
+		var numWave = 20;
 		var th;
 		var r;
 		for(var i = 0; i < thDiv; ++i) {
@@ -63,24 +64,28 @@ function initEvents(canvas) {
 		return { points: inputPoints, constraint: constraint };
 	}
 
-	var waveResult = waveCircle();
-	inputPoints = waveResult.points;
-	constraint = [waveResult.constraint];
-	
-	var circleResult = circle();
-	inputPoints = inputPoints.concat(circleResult.points);
-	var cst = [];
-	for(var i = 0; i < circleResult.constraint.length; ++i) {
-		cst.push(waveResult.points.length+circleResult.constraint[i]);
+	function makeInputData() {
+		var waveResult = waveCircle();
+		inputPoints = waveResult.points;
+		constraint = [waveResult.constraint];
+
+		var circleResult = circle();
+		inputPoints = inputPoints.concat(circleResult.points);
+		holeBoundary = [[]];
+		for(var i = 0; i < circleResult.constraint.length; ++i) {
+			holeBoundary[0].push(waveResult.points.length + circleResult.constraint[i]);
+		}
 	}
-	constraint.push(cst);
+
+	makeInputData();
 
 	draw();
 
 	// mouseクリック時のイベントコールバック設定
 	canvas.mousedown(function (event) {
 		// 左クリック
-		if(event.button == 0) {
+		//		if(event.button == 0) {
+		if(false){
 			var canvasOffset = canvas.offset();
 			var canvasX = Math.floor(event.pageX - canvasOffset.left);
 			var canvasY = Math.floor(event.pageY - canvasOffset.top);
@@ -103,7 +108,7 @@ function initEvents(canvas) {
 			draw();
 		}
 			// 右クリック
-		else if(event.button == 2) {
+		else if(event.button == 2 || event.button == 0) {
 			var canvasOffset = canvas.offset();
 			var canvasX = Math.floor(event.pageX - canvasOffset.left);
 			var canvasY = Math.floor(event.pageY - canvasOffset.top);
@@ -158,9 +163,7 @@ function initEvents(canvas) {
 		constraint = [];
 		selectPoint = null;
 
-		var waveResult = waveCircle();
-		inputPoints = waveResult.points;
-		constraint = waveResult.constraint;
+		makeInputData();
 
 		draw();
 	});
@@ -180,18 +183,18 @@ function initEvents(canvas) {
 		// 三角形分割
 		if(false) {
 			var result2 = delaunayTriangulation(inputPoints);
-			drawResult(result2, context, constraint, inputPoints);
+			drawResult(result2, context, constraint, holeBoundary, inputPoints);
 		}
 
 		if(true) {
-			var result = mcdt(inputPoints, constraint);
-			drawResult(result, context, constraint, inputPoints);
+			var result = mcdt(inputPoints, constraint, holeBoundary);
+			drawResult(result, context, constraint, holeBoundary, inputPoints);
 		}
 
 
 	}
 
-	function drawResult(result, context, constraint, inputPoints) {
+	function drawResult(result, context, constraint, holeBoundary, inputPoints) {
 		if(result == null) {
 			// 点の描画
 			context.fillStyle = 'black';
@@ -278,6 +281,22 @@ function initEvents(canvas) {
 		}
 		context.lineWidth = 1;
 
+
+		// 穴境界の描画
+		context.strokeStyle = 'lightblue';
+		context.lineWidth = 6;
+		context.beginPath();
+		for(var j = 0; j < holeBoundary.length; ++j) {
+			if(holeBoundary[j].length != 0) {
+				context.moveTo(inputPoints[holeBoundary[j][0]][0], inputPoints[holeBoundary[j][0]][1]);
+			}
+			for(var i = 1; i < holeBoundary[j].length; ++i) {
+				context.lineTo(inputPoints[holeBoundary[j][i]][0], inputPoints[holeBoundary[j][i]][1]);
+			}
+			context.stroke();
+		}
+		context.lineWidth = 1;
+
 		// 拘束に失敗している辺の描画
 		context.strokeStyle = 'red';
 		var crossEdge = result.crossEdge;
@@ -308,7 +327,7 @@ function initEvents(canvas) {
 
 		// 点の描画
 		context.fillStyle = 'black';
-		drawPoints(canvas, points, 3);
+		drawPoints(canvas, points, 2);
 
 		// 削除三角形の頂点の描画
 		context.fillStyle = 'red';
@@ -319,7 +338,7 @@ function initEvents(canvas) {
 			}
 			rmPoints.push(points[result.rmVtx[i]]);
 		}
-		drawPoints(canvas, rmPoints, 2);
+		drawPoints(canvas, rmPoints, 1);
 
 		/*
 		// upperVtx
@@ -443,7 +462,7 @@ function drawAdjacents(canvas, points, head) {
 			console.log("removed が　混じってるぞ");
 			continue;
 		}
-		context.strokeStyle = 'skyblue';
+		context.strokeStyle = 'orange';
 		//context.strokeStyle = 'blue';
 		v1 = mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
 		v1 = mcdt.div(mcdt.add(v1, points[tri.vertexID[2]]), 3);
