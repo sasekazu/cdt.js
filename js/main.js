@@ -47,7 +47,7 @@ function initEvents(canvas) {
 		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
 		var rad = 0.3 * canvasHeight;
 		var innerRad = 0.4 * rad;
-		var thDiv = 50;
+		var thDiv = 150;
 		var numWave = 5;
 		var th;
 		var r;

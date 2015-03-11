@@ -89,7 +89,7 @@ function mcdt(inputPoints, constraint) {
 	head = mcdt.removeSuperTriangle(head, points);
 
 	// STEP5: 境界の内外判定と外部三角形の削除
-	//head = mcdt.removeOuterTriangles(head, cst);
+	head = mcdt.removeOuterTriangles(head, points, cst);
 
 
 	// 三角形接続リストの作成
@@ -276,8 +276,6 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 		innerPoints[i] = mcdt.clone(points[innerVtx[i]]);
 	}
 
-
-
 	// innerVtxが輪郭の辺に沿ってCCWで格納されている
 	// ことを想定するため
 	// constraintは [0, 1, 2, ...] となる
@@ -306,7 +304,7 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 	// スーパートライアングルの削除
 	head = mcdt.removeSuperTriangle(head, innerPoints);
 	// 外部三角形の削除
-	head = mcdt.removeOuterTriangles(head, cst);
+	head = mcdt.removeOuterTrianglesForInnerTriangulation(head, cst);
 
 	// 親ドロネーの頂点インデックスに書き換える
 	for(var tri = head; tri != null; tri = tri.next) {
@@ -317,11 +315,9 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 	return head;
 }
 
-
-
 // 境界の内外判定と外部三角形の削除
 // 谷口，FEMのための要素自動分割，P35の内外判定法を用いる
-mcdt.removeOuterTriangles = function (head, cst) {
+mcdt.removeOuterTrianglesForInnerTriangulation = function (head, cst) {
 	var cstVtxID = new Array(3);
 	var signs = new Array(3);
 	var trinext;
@@ -346,6 +342,82 @@ mcdt.removeOuterTriangles = function (head, cst) {
 	}
 	return head;
 }
+
+// 境界の内外判定と外部三角形の削除
+// すべての三角形について境界との内外判定を行う
+// 三角形の隣接関係を用いれば高速化できるかもしれない
+mcdt.removeOuterTriangles = function (head, points, cst) {
+	var trinext;
+	for(var tri = head; tri != null; tri = trinext) {
+		trinext = tri.next;
+		// 三角形の境界内外判定
+		var isInner = false;
+		var triCenter = mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
+		triCenter = mcdt.div(mcdt.add(triCenter, points[tri.vertexID[2]]), 3);
+		for(var i = 0; i < cst.length; ++i) {
+			if(mcdt.isPointInsideOfBoundary(triCenter, points, cst[i])) {
+				isInner = true;
+				break;
+			}
+		}
+		// どの境界にも含まれなければ削除
+		if(!isInner) {
+			head = tri.remove(head);
+		}
+	}
+	return head;
+}
+
+
+mcdt.isPointInsideOfBoundary = function(p, points, boundary){
+	if(p.length == 0) return flase;
+	// +x方向へレイを出す
+	var countxp = 0;
+	var ZERO = 1e-10;
+	var edge;
+	for(var j = 0; j < boundary.length - 1; j++) {
+		edge = new mcdt.LineSeg(points[boundary[j]], points[boundary[j + 1]]);
+		// pを通りx軸に平行な直線に交わるかどうか
+		var dys = edge.start[1] - p[1];
+		var dye = edge.end[1] - p[1];
+		if(Math.abs(dys) < ZERO) dys = 0;
+		if(Math.abs(dye) < ZERO) dye = 0;
+		if(dys * dye > 0) continue;
+		// 線分がx軸に平行な場合は除外
+		if(Math.abs(edge.start[1]-edge.end[1]) < ZERO) continue;
+		// pを通り+x方向に出したレイが線分と交わるかどうか
+		var interx = edge.crossXpos(p[1]);
+		if(interx < p[0]) continue;
+		// 交点が線分のend側だった場合、交わっていないとみなす
+		if(
+			Math.abs(interx - edge.end[0]) < ZERO
+			&&
+			Math.abs(p[1] - edge.end[1]) < ZERO
+		) {
+			continue;
+		}
+		// 交点が線分のstart側だが接点である場合、交わっていないとみなす
+		if(
+			Math.abs(interx - edge.start[0]) < ZERO
+			&&
+			Math.abs(p[1] - edge.start[1]) < ZERO
+		) {
+			var stEdgeY;	// start側の辺のy座標
+			if(j == 0) {
+				stEdgeY = points[boundary[boundary.length - 2]][1];
+			} else {
+				stEdgeY = points[boundary[j - 1]][1];
+			}
+			if((edge.end[1] - edge.start[1]) * (stEdgeY - edge.start[1]) >= 0) {
+				continue;
+			}
+		}
+		++countxp;
+	}
+	return countxp % 2 == 1;
+}
+
+
 
 
 // cstで定義される辺ベクトルで
@@ -1024,4 +1096,50 @@ mcdt.div = function (x, y) {
 		tmp[i] = v[i] * inva;
 	}
 	return tmp;
+}
+
+
+
+
+
+// 線分クラス
+mcdt.LineSeg = function (st, ed) {
+	this.start = mcdt.clone(st); // start point [x,y]
+	this.end = mcdt.clone(ed); // end point [x,y]
+	this.a = this.end[1] - this.start[1];
+	this.b = this.start[0] - this.end[0];
+	this.c = (this.end[0] - this.start[0]) * this.start[1]
+	- (this.end[1] - this.start[1]) * this.start[0];
+	this.vec = mcdt.sub(this.end, this.start);
+	this.len = mcdt.norm2(this.vec);
+}
+// 線分との交差判定
+mcdt.LineSeg.prototype.intersect = function (ls) {
+	var intersection = false;
+	var t1 = ((this.start[0] - this.end[0]) * (ls.start[1] - this.start[1]) + (this.start[1] - this.end[1]) * (this.start[0] - ls.start[0])) *
+	((this.start[0] - this.end[0]) * (ls.end[1] - this.start[1]) + (this.start[1] - this.end[1]) * (this.start[0] - ls.end[0]));
+	var t2 = ((ls.start[0] - ls.end[0]) * (this.start[1] - ls.start[1]) + (ls.start[1] - ls.end[1]) * (ls.start[0] - this.start[0])) *
+	((ls.start[0] - ls.end[0]) * (this.end[1] - ls.start[1]) + (ls.start[1] - ls.end[1]) * (ls.start[0] - this.end[0]));
+	if(t1 <= 0 && t2 <= 0) {
+		if((this.start[1] - this.end[1]) / (this.start[0] - this.end[0])
+		!= (ls.start[1] - ls.end[1]) / (ls.start[0] - ls.end[0])) {
+			intersection = true;
+		}
+	}
+	return intersection;
+}
+// 線分同士の交点の計算
+mcdt.LineSeg.prototype.crossPos = function (ls) {
+	var cross = new Array(2);
+	cross[0] = (this.b * ls.c - ls.b * this.c) / (this.a * ls.b - ls.a * this.b);
+	cross[1] = (ls.a * this.c - this.a * ls.c) / (this.a * ls.b - ls.a * this.b);
+	return cross;
+}
+// x軸に平行な直線(y=*)との交点のx座標
+mcdt.LineSeg.prototype.crossXpos = function (y) {
+	return (-this.b * y - this.c) / this.a;
+}
+// y軸に平行な直線(x=*)との交点のx座標
+mcdt.LineSeg.prototype.crossYpos = function (x) {
+	return (-this.a * x - this.c) / this.b;
 }
