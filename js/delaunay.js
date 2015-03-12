@@ -366,7 +366,7 @@ mcdt.removeOuterTriangles = function (head, points, boundary, holeBounday) {
 		trinext = tri.next;
 		// 三角形の境界内外判定
 		var isInHole = false;
-		var isInner = true;
+		var isInner = false;
 		var triCenter = mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
 		triCenter = mcdt.div(mcdt.add(triCenter, points[tri.vertexID[2]]), 3);
 		// 穴境界に含まれれば削除
@@ -379,8 +379,8 @@ mcdt.removeOuterTriangles = function (head, points, boundary, holeBounday) {
 		// 通常境界のいずれにも含まれなければ削除
 		if(!isInHole) {
 			for(var i = 0; i < boundary.length; ++i) {
-				if(!mcdt.isPointInsideOfBoundary(triCenter, points, boundary[i])) {
-					isInner = false;
+				if(mcdt.isPointInsideOfBoundary(triCenter, points, boundary[i])) {
+					isInner = true;
 					break;
 				}
 			}

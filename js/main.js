@@ -23,12 +23,11 @@ function initEvents(canvas) {
 
 	var selectPoint = null;
 
-	function circle() {
+	function circle(center) {
 		var inputPoints = [];
 		var constraint = [];
-		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
-		var r = 0.15 * canvasHeight;
-		var thDiv = 30;
+		var r = 0.06 * canvasHeight;
+		var thDiv = 20;
 		var th;
 		for(var i = 0; i < thDiv; ++i) {
 			th = 2 * Math.PI / thDiv * i;
@@ -42,10 +41,9 @@ function initEvents(canvas) {
 	}
 
 
-	function waveCircle() {
+	function waveCircle(center) {
 		var inputPoints = [];
 		var constraint = [];
-		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
 		var rad = 0.3 * canvasHeight;
 		var innerRad = 0.1 * rad;
 		var thDiv = 150;
@@ -65,16 +63,58 @@ function initEvents(canvas) {
 	}
 
 	function makeInputData() {
-		var waveResult = waveCircle();
+		var center0 = [canvasWidth * 0.5, canvasHeight * 0.5];
+		var center_up = [canvasWidth * 0.5, canvasHeight * 0.5 + canvasWidth * 0.1];
+		var center_bottom = [canvasWidth * 0.5, canvasHeight * 0.5 - canvasWidth * 0.1];
+		var center_left = [canvasWidth * 0.4, canvasHeight * 0.5];
+		var center_right = [canvasWidth * 0.6, canvasHeight * 0.5];
+		var waveResult = waveCircle(center0);
 		inputPoints = waveResult.points;
 		constraint = [waveResult.constraint];
-
-		var circleResult = circle();
-		inputPoints = inputPoints.concat(circleResult.points);
-		holeBoundary = [[]];
-		for(var i = 0; i < circleResult.constraint.length; ++i) {
-			holeBoundary[0].push(waveResult.points.length + circleResult.constraint[i]);
+		/*
+		var tmp = [];
+		waveResult = waveCircle(center2);
+		for(var i = 0; i < waveResult.constraint.length; ++i) {
+			tmp.push(waveResult.constraint[i]+inputPoints.length);
 		}
+		constraint.push(tmp);
+		inputPoints = inputPoints.concat(waveResult.points);
+		*/
+
+		var circleResult = circle(center_up);
+		holeBoundary = [];
+		tmp = [];
+		for(var i = 0; i < circleResult.constraint.length; ++i) {
+			tmp.push(circleResult.constraint[i] + inputPoints.length);
+		}
+		holeBoundary.push(tmp);
+		inputPoints = inputPoints.concat(circleResult.points);
+
+		circleResult = circle(center_bottom);
+		tmp = [];
+		for(var i = 0; i < circleResult.constraint.length; ++i) {
+			tmp.push(circleResult.constraint[i] + inputPoints.length);
+		}
+		holeBoundary.push(tmp);
+		inputPoints = inputPoints.concat(circleResult.points);
+
+		circleResult = circle(center_left);
+		tmp = [];
+		for(var i = 0; i < circleResult.constraint.length; ++i) {
+			tmp.push(circleResult.constraint[i] + inputPoints.length);
+		}
+		holeBoundary.push(tmp);
+		inputPoints = inputPoints.concat(circleResult.points);
+
+		circleResult = circle(center_right);
+		tmp = [];
+		for(var i = 0; i < circleResult.constraint.length; ++i) {
+			tmp.push(circleResult.constraint[i] + inputPoints.length);
+		}
+		holeBoundary.push(tmp);
+		inputPoints = inputPoints.concat(circleResult.points);
+
+
 	}
 
 	makeInputData();
@@ -250,10 +290,11 @@ function initEvents(canvas) {
 		}
 
 		// 隣接関係の描画
-		drawAdjacents(canvas, points, head);
+		//drawAdjacents(canvas, points, head);
 
 
 		// 三角形headの描画
+		/*
 		if(head != null) {
 			context.globalAlpha = 0.2;
 			context.fillStyle = 'gray';
@@ -265,8 +306,10 @@ function initEvents(canvas) {
 			context.fill();
 			context.globalAlpha = 1;
 		}
+		*/
 
 		// 拘束辺の描画
+		/*
 		context.strokeStyle = 'lightgreen';
 		context.lineWidth = 6;
 		context.beginPath();
@@ -280,9 +323,11 @@ function initEvents(canvas) {
 			context.stroke();
 		}
 		context.lineWidth = 1;
+		*/
 
 
 		// 穴境界の描画
+		/*
 		context.strokeStyle = 'lightblue';
 		context.lineWidth = 6;
 		context.beginPath();
@@ -296,6 +341,7 @@ function initEvents(canvas) {
 			context.stroke();
 		}
 		context.lineWidth = 1;
+		*/
 
 		// 拘束に失敗している辺の描画
 		context.strokeStyle = 'red';
@@ -409,6 +455,7 @@ function drawTrianglesFromHead(canvas, points, head) {
 		context.lineTo(points[tri.vertexID[2]][0], points[tri.vertexID[2]][1]);
 		context.lineTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
 		context.stroke();
+		context.fill();
 	}
 }
 
