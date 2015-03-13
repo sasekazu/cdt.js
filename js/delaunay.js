@@ -8,6 +8,8 @@
 // 返り値：
 //    オブジェクト
 //    points: 点の座標リスト (inputPointsに加えて点群を内包する大きい三角形の頂点を含む)
+//    connectivity: 三角形を構成する頂点IDの配列 
+//       (例. [[pointID1, pointID2, pointID3], [pointID4, pointID5, pointID6], ... ])
 //    head: ドロネー三角形クラスの連結リストの先頭への参照
 function mcdt(boundaryPoints, holeBoundaryPoints) {
 
@@ -26,6 +28,7 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	if(points.length < 3) {
 		return null;
 	}
+
 
 	// STEP1: スーパートライアングルの作成
 	// すべての点を内包する
@@ -50,11 +53,6 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	}
 
 	// STEP3: 辺と閉境界との交差判定と交差解消
-	var crossEdge = null;
-	var crossTri = [];
-	var rmVtx = [];
-	var resultULV = [];
-	var adjTris = [];
 	var itrCount = 0;
 	while(1) {
 		if(itrCount > 2*points.length) {
@@ -63,14 +61,13 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 		}
 		// 辺と閉境界との交差判定
 		var resultCrossTri = mcdt.getCrossTriConstraint(points, head, cst);
-		crossEdge = resultCrossTri.crossEdge;
-		crossTri = resultCrossTri.crossTri;
+		var crossEdge = resultCrossTri.crossEdge;
+		var crossTri = resultCrossTri.crossTri;
 		// 交差三角形頂点の抽出
-		rmVtx = mcdt.extractVerticesFromTri(crossTri);
-		resultULV = mcdt.getUpperAndLowerVtx(points, crossEdge, rmVtx);
+		var rmVtx = mcdt.extractVerticesFromTri(crossTri);
+		var resultULV = mcdt.getUpperAndLowerVtx(points, crossEdge, rmVtx);
 		// 交差三角形の削除
 		var rmTriResult = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
-		adjTris = rmTriResult.adjTris;
 		head = rmTriResult.head;
 		// 新しい三角形の追加
 		if(crossEdge != null) {
@@ -98,21 +95,16 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 
 	return {
 		points: points,
-		head: head,
-		crossEdge: crossEdge,
-		crossTris: [crossTri],
 		connectivity: conn,
-		rmVtx: rmVtx,
-		upperVtx: resultULV.upperVtx,
-		lowerVtx: resultULV.lowerVtx,
-		adjTris: adjTris
+		head: head
 	};
 }
 
 
 
-mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints) {
+mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints, triSize) {
 
+	// 1. points の作成
 	// 入力された点の座標値はすべて一様に
 	// points 配列に格納する
 	// 格納の順番はboundaryPointsの先頭から開始し
@@ -138,6 +130,8 @@ mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints) {
 			++cntPt;
 		}
 	}
+
+	// 2. constraintの作成
 	var constraint = new Array(boundaryPoints.length+holeBoundaryPoints.length);
 	var cntBnd = 0;
 	// 閉境界は cst[0]=cst[length-1] となるようにする
@@ -158,6 +152,62 @@ mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints) {
 		}
 		constraint[i+offset].push(constraint[i+offset][0]);
 	}
+
+
+	// 3. 境界内に追加する点の追加
+	if(triSize == undefined) {
+		var averageLength = 0;
+		var entryCount = 0;
+		var edgeVec;
+		for(var i = 0; i < boundaryPoints.length; ++i) {
+			for(var j = 0; j < boundaryPoints[i].length; ++j) {
+				edgeVec = mcdt.sub(boundaryPoints[i][(j+1)%boundaryPoints[i].length], boundaryPoints[i][j]);
+				averageLength += mcdt.norm2(edgeVec);
+				++entryCount;
+			}
+		}
+		for(var i = 0; i < holeBoundaryPoints.length; ++i) {
+			for(var j = 0; j < holeBoundaryPoints[i].length; ++j) {
+				edgeVec = mcdt.sub(holeBoundaryPoints[i][(j+1)%holeBoundaryPoints[i].length], holeBoundaryPoints[i][j]);
+				averageLength += mcdt.norm2(edgeVec);
+				++entryCount;
+			}
+		}
+		averageLength /= entryCount;
+		triSize = averageLength*2;
+	}
+	var additionalPoints = [];
+	var xmax = points[0][0];
+	var xmin = points[0][0];
+	var ymax = points[0][1];
+	var ymin = points[0][1];
+	for(var i = 0; i < points.length; ++i) {
+		if(xmax < points[i][0]) {
+			xmax = points[i][0];
+		}
+		if(xmin > points[i][0]) {
+			xmin = points[i][0];
+		}
+		if(ymax < points[i][1]) {
+			ymax = points[i][1];
+		}
+		if(ymin > points[i][1]) {
+			ymin = points[i][1];
+		}
+	}
+	var xdiv = (xmax-xmin)/triSize;
+	var ydiv = (ymax-ymin)/triSize;
+	var newPt;
+	for(var i = 0; i < xdiv + 1; ++i) {
+		for(var j = 0; j < ydiv + 1; ++j) {
+			newPt = [xmin+triSize*i, ymin+triSize*j];
+			if(mcdt.isPointInsideOfBoundaries(newPt, boundaryPoints, holeBoundaryPoints)) {
+				additionalPoints.push(newPt);
+			}
+		}
+	}
+	points = points.concat(additionalPoints);
+
 
 	return {
 		points: points,
@@ -296,10 +346,7 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 		cst.push(cst[0]);
 	}
 	// STEP1: スーパートライアングルの作成
-	var superTri = mcdt.addSuperTriangleToPoints(innerPoints);
-	innerPoints.push(superTri[0]);
-	innerPoints.push(superTri[1]);
-	innerPoints.push(superTri[2]);
+	mcdt.addSuperTriangleToPoints(innerPoints);
 	var l = innerPoints.length;
 	var head = new DelaunayTriangle(innerPoints, [l - 3, l - 2, l - 1]);
 	// STEP2: 点の逐次追加
@@ -350,42 +397,46 @@ mcdt.removeOuterTrianglesForInnerTriangulation = function (head, cst) {
 	return head;
 }
 
+
 // 境界の内外判定と外部三角形の削除
-// すべての三角形について境界との内外判定を行う
+// 三角形の重心と境界の内外判定を行い，
+// 境界の外部であれば三角形を削除する
 // 三角形の隣接関係を用いれば高速化できるかもしれない
-mcdt.removeOuterTriangles = function (head, points, boundaryPoints, holeBoundayPoints) {
+mcdt.removeOuterTriangles = function (head, points, boundaryPoints, holeBoundaryPoints) {
 	var trinext;
 	for(var tri = head; tri != null; tri = trinext) {
 		trinext = tri.next;
-		// 三角形の境界内外判定
-		var isInHole = false;
-		var isInner = false;
 		var triCenter = mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
 		triCenter = mcdt.div(mcdt.add(triCenter, points[tri.vertexID[2]]), 3);
-		// 穴境界に含まれれば削除
-		for(var i = 0; i < holeBoundayPoints.length; ++i) {
-			if(mcdt.isPointInsideOfBoundary(triCenter, holeBoundayPoints[i])) {
-				isInHole = true;
-				break;
-			}
-		}
-		// 通常境界のいずれにも含まれなければ削除
-		if(!isInHole) {
-			for(var i = 0; i < boundaryPoints.length; ++i) {
-				if(mcdt.isPointInsideOfBoundary(triCenter, boundaryPoints[i])) {
-					isInner = true;
-					break;
-				}
-			}
-		}
-		// どの境界にも含まれなければ削除
-		if(isInHole || !isInner) {
+		if(!mcdt.isPointInsideOfBoundaries(triCenter, boundaryPoints, holeBoundaryPoints)) {
 			head = tri.remove(head);
 		}
 	}
 	return head;
 }
 
+
+// 点が境界内部で穴の外に存在するかどうかを判別する
+// boundaryPoints, holeBoundaryPoints には境界上の点の座標を格納する
+mcdt.isPointInsideOfBoundaries = function(p, boundaryPoints, holeBoundaryPoints){
+	var isInHole = false;
+	// 穴境界に含まれれば削除
+	for(var i = 0; i < holeBoundaryPoints.length; ++i) {
+		if(mcdt.isPointInsideOfBoundary(p, holeBoundaryPoints[i])) {
+			isInHole = true;
+			return false;
+		}
+	}
+	// 通常境界のいずれにも含まれなければ削除
+	if(!isInHole) {
+		for(var i = 0; i < boundaryPoints.length; ++i) {
+			if(mcdt.isPointInsideOfBoundary(p, boundaryPoints[i])) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
 
 // boundary には境界上の点の座標を格納する
 mcdt.isPointInsideOfBoundary = function(p, boundary){
@@ -569,6 +620,10 @@ mcdt.isEdgeCross = function (points, pointToTri, cst, i) {
 	for(; ;) {
 		edgeIDinAdj = tri.edgeIDinAdjacent[adjEdge];
 		tri = tri.adjacent[adjEdge];
+		if(tri == null) {
+			console.log("ERROR at isEdgeCross");
+			break;
+		}
 		crossTri.push(tri);
 		if(tri.vertexID[(edgeIDinAdj + 2) % 3] == cst[i + 1]) {
 			break;

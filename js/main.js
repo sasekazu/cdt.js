@@ -64,9 +64,6 @@ function initEvents(canvas) {
 		boundaryPoints = [waveResult.points];
 
 		holeBoundaryPoints = [];
-		var circleResult = circle(center0);
-		holeBoundaryPoints.push(circleResult.points);
-		/*
 		var circleResult = circle(center_up);
 		holeBoundaryPoints.push(circleResult.points);
 		circleResult = circle(center_bottom);
@@ -75,7 +72,6 @@ function initEvents(canvas) {
 		holeBoundaryPoints.push(circleResult.points);
 		circleResult = circle(center_right);
 		holeBoundaryPoints.push(circleResult.points);
-		*/
 
 	}
 
@@ -158,7 +154,6 @@ function initEvents(canvas) {
 		if(true) {
 			var result = mcdt(boundaryPoints, holeBoundaryPoints);
 			drawResult(result, context, holeBoundary, inputPoints);
-			console.log(result);
 		}
 
 
@@ -177,66 +172,29 @@ function initEvents(canvas) {
 		conn = result.connectivity;
 
 
+		// 三角形の描画
+		context.strokeStyle = 'black';
+		context.fillStyle = 'lightyellow';
+		drawTrianglesFromHead(canvas, points, head);
+		/*
+		for(var i = 0; i < conn.length; ++i) {
+			context.beginPath();
+			context.moveTo(points[conn[i][0]][0], points[conn[i][0]][1]);
+			context.lineTo(points[conn[i][1]][0], points[conn[i][1]][1]);
+			context.lineTo(points[conn[i][2]][0], points[conn[i][2]][1]);
+			context.lineTo(points[conn[i][0]][0], points[conn[i][0]][1]);
+			context.stroke();
+		}
+		*/
+
 		// 外接円の描画
 		if($('#gaisetuenCheckBox').is(':checked')) {
 			drawCircumcirclesFromHead(canvas, points, head);
 		}
 
 
-		// 拘束辺と交差している三角形の描画
-		context.fillStyle = 'pink';
-		for(var i = 0; i < crossTri.length; ++i) {
-			for(var j = 0; j < crossTri[i].length; ++j) {
-				if(crossTri[i][j].isRemoved) {
-					continue;
-				}
-				context.beginPath();
-				context.moveTo(points[crossTri[i][j].vertexID[0]][0], points[crossTri[i][j].vertexID[0]][1]);
-				context.lineTo(points[crossTri[i][j].vertexID[1]][0], points[crossTri[i][j].vertexID[1]][1]);
-				context.lineTo(points[crossTri[i][j].vertexID[2]][0], points[crossTri[i][j].vertexID[2]][1]);
-				context.lineTo(points[crossTri[i][j].vertexID[0]][0], points[crossTri[i][j].vertexID[0]][1]);
-				context.fill();
-			}
-		}
-
-		// 交差三角形と隣接している三角形の描画
-		context.fillStyle = 'orange';
-		var adjTris = result.adjTris;
-		for(var i = 0; i < adjTris.length; ++i) {
-			if(adjTris[i].isRemoved) {
-				continue;
-			}
-			if(adjTris[i].vertexID[0] > points.length
-				|| adjTris[i].vertexID[1] > points.length
-				|| adjTris[i].vertexID[2] > points.length) {
-				continue;
-			}
-			context.beginPath();
-			context.moveTo(points[adjTris[i].vertexID[0]][0], points[adjTris[i].vertexID[0]][1]);
-			context.lineTo(points[adjTris[i].vertexID[1]][0], points[adjTris[i].vertexID[1]][1]);
-			context.lineTo(points[adjTris[i].vertexID[2]][0], points[adjTris[i].vertexID[2]][1]);
-			context.lineTo(points[adjTris[i].vertexID[0]][0], points[adjTris[i].vertexID[0]][1]);
-			context.fill();
-		}
-
-		// 隣接関係の描画
-		drawAdjacents(canvas, points, head);
-
-
-		// 三角形headの描画
-		if(head != null) {
-			context.globalAlpha = 0.2;
-			context.fillStyle = 'darkgray';
-			context.beginPath();
-			context.moveTo(points[head.vertexID[0]][0], points[head.vertexID[0]][1]);
-			context.lineTo(points[head.vertexID[1]][0], points[head.vertexID[1]][1]);
-			context.lineTo(points[head.vertexID[2]][0], points[head.vertexID[2]][1]);
-			context.lineTo(points[head.vertexID[0]][0], points[head.vertexID[0]][1]);
-			context.fill();
-			context.globalAlpha = 1;
-		}
-
-		// 拘束辺の描画
+		// 境界の描画
+		/*
 		context.strokeStyle = 'lightgreen';
 		context.lineWidth = 6;
 		context.beginPath();
@@ -267,87 +225,15 @@ function initEvents(canvas) {
 			context.stroke();
 		}
 		context.lineWidth = 1;
-
-		// 拘束に失敗している辺の描画
-		context.strokeStyle = 'red';
-		var crossEdge = result.crossEdge;
-		if(crossEdge != null) {
-			context.lineWidth = 6;
-			context.beginPath();
-			var pointID = crossEdge[0];
-			var pointID2 = crossEdge[1];
-			context.moveTo(inputPoints[pointID][0], inputPoints[pointID][1]);
-			context.lineTo(inputPoints[pointID2][0], inputPoints[pointID2][1]);
-			context.stroke();
-			context.lineWidth = 1;
-		}
-
-		// 三角形の描画
-		context.strokeStyle = 'black';
-		context.fillStyle = 'lightyellow';
-		drawTrianglesFromHead(canvas, points, head);
-		/*
-		for(var i = 0; i < conn.length; ++i) {
-			context.beginPath();
-			context.moveTo(points[conn[i][0]][0], points[conn[i][0]][1]);
-			context.lineTo(points[conn[i][1]][0], points[conn[i][1]][1]);
-			context.lineTo(points[conn[i][2]][0], points[conn[i][2]][1]);
-			context.lineTo(points[conn[i][0]][0], points[conn[i][0]][1]);
-			context.stroke();
-		}
 		*/
+
+		
+		// 隣接関係の描画
+		//drawAdjacents(canvas, points, head);
 
 		// 点の描画
 		context.fillStyle = 'black';
 		drawPoints(canvas, points, 2);
-
-		// 削除三角形の頂点の描画
-		context.fillStyle = 'red';
-		var rmPoints = [];
-		for(var i = 0; i < result.rmVtx.length; ++i) {
-			if(result.rmVtx[i] >= points.length) {
-				continue;
-			}
-			rmPoints.push(points[result.rmVtx[i]]);
-		}
-		drawPoints(canvas, rmPoints, 1);
-
-		// upperVtx
-		context.fillStyle='purple';
-		context.strokeStyle='purple';
-		context.lineWidth=5;
-		rmPoints=[];
-		for(var i=0; i<result.upperVtx.length; ++i) {
-			rmPoints.push(points[result.upperVtx[i]]);
-		}
-		drawPoints(canvas, rmPoints, 8);
-		context.beginPath();
-		if(rmPoints.length!=0) {
-			context.moveTo(rmPoints[0][0], rmPoints[0][1]);
-		}
-		for(var i=1; i<rmPoints.length; ++i) {
-			context.lineTo(rmPoints[i][0], rmPoints[i][1]);
-		}
-		context.stroke();
-		context.lineWidth=1;
-		// lowerVtx
-		context.fillStyle='orange';
-		context.strokeStyle='orange';
-		context.lineWidth=5;
-		rmPoints=[];
-		for(var i=0; i<result.lowerVtx.length; ++i) {
-			rmPoints.push(points[result.lowerVtx[i]]);
-		}
-		drawPoints(canvas, rmPoints, 4);
-		context.beginPath();
-		if(rmPoints.length!=0) {
-			context.moveTo(rmPoints[0][0], rmPoints[0][1]);
-		}
-		for(var i=1; i<rmPoints.length; ++i) {
-			context.lineTo(rmPoints[i][0], rmPoints[i][1]);
-		}
-		context.stroke();
-		context.lineWidth=1;
 	}
 }
 
