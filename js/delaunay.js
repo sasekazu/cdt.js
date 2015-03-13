@@ -15,25 +15,24 @@
 function mcdt(boundaryPoints, holeBoundaryPoints) {
 
 	var resultInputGen = mcdt.generateInputData(boundaryPoints, holeBoundaryPoints);
-	var inputPoints = resultInputGen.inputPoints;
-	var bnd = resultInputGen.boundary;
-	var hbnd = resultInputGen.holeBoundary;
+
+	// 点の座標を格納する配列
+	var points = resultInputGen.points;
+
+	// cst: constrainsの略
+	// 閉境界を構成する点のID [pointID1, pointID2,.... ] 
+	// 先頭要素 = 最終要素 となるように作成される
+	var cst = resultInputGen.constraint;		
+
 	// 入力点が3以下の場合、強制終了
-	if(inputPoints.length < 3) {
+	if(points.length < 3) {
 		return null;
 	}
-
-	// 頂点座標群と閉境界のデータコピーと整形
-	var points = mcdt.clone(inputPoints);
-	var cst = mcdt.clone(bnd).concat(hbnd);		// constrains
 
 	// STEP1: スーパートライアングルの作成
 	// すべての点を内包する
 	// 大きい三角形(superTriangle)の頂点を追加
-	var superTri = mcdt.getSuperTriangle(points);
-	points.push(superTri[0]);
-	points.push(superTri[1]);
-	points.push(superTri[2]);
+	mcdt.addSuperTriangleToPoints(points);
 	var l = points.length;
 	var head = new DelaunayTriangle(points, [l - 3, l - 2, l - 1]);
 
@@ -85,7 +84,7 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	head = mcdt.removeSuperTriangle(head, points);
 
 	// STEP5: 境界の内外判定と外部三角形の削除
-	head = mcdt.removeOuterTriangles(head, points, bnd, hbnd);
+	head = mcdt.removeOuterTriangles(head, points, boundaryPoints, holeBoundaryPoints);
 
 
 	// 三角形接続リストの作成
@@ -119,10 +118,7 @@ function delaunayTriangulation(inputPoints) {
 	var points = mcdt.clone(inputPoints);
 
 	// STEP1: スーパートライアングルの作成
-	var superTri = mcdt.getSuperTriangle(points);
-	points.push(superTri[0]);
-	points.push(superTri[1]);
-	points.push(superTri[2]);
+	mcdt.addSuperTriangleToPoints(points);
 	var l = points.length;
 	var head = new DelaunayTriangle(points, [l - 3, l - 2, l - 1]);
 
@@ -165,17 +161,17 @@ mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints) {
 	for(var i=0; i<holeBoundaryPoints.length; ++i){
 		numPoints += holeBoundaryPoints[i].length;
 	}
-	var inputPoints = new Array(numPoints);
+	var points = new Array(numPoints);
 	var cntPt = 0;
 	for(var i = 0; i < boundaryPoints.length; ++i) {
 		for(var j = 0; j < boundaryPoints[i].length; ++j) {
-			inputPoints[cntPt] = mcdt.clone(boundaryPoints[i][j]);
+			points[cntPt] = mcdt.clone(boundaryPoints[i][j]);
 			++cntPt;
 		}
 	}
 	for(var i = 0; i < holeBoundaryPoints.length; ++i) {
 		for(var j = 0; j < holeBoundaryPoints[i].length; ++j) {
-			inputPoints[cntPt] = mcdt.clone(holeBoundaryPoints[i][j]);
+			points[cntPt] = mcdt.clone(holeBoundaryPoints[i][j]);
 			++cntPt;
 		}
 	}
@@ -199,11 +195,11 @@ mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints) {
 		}
 		holeBoundary[i].push(holeBoundary[i][0]);
 	}
+	var constraint = boundary.concat(holeBoundary);
 
 	return {
-		inputPoints: inputPoints,
-		boundary: boundary,
-		holeBoundary: holeBoundary
+		points: points,
+		constraint: constraint
 	}
 }
 
@@ -338,7 +334,7 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 		cst.push(cst[0]);
 	}
 	// STEP1: スーパートライアングルの作成
-	var superTri = mcdt.getSuperTriangle(innerPoints);
+	var superTri = mcdt.addSuperTriangleToPoints(innerPoints);
 	innerPoints.push(superTri[0]);
 	innerPoints.push(superTri[1]);
 	innerPoints.push(superTri[2]);
@@ -395,7 +391,7 @@ mcdt.removeOuterTrianglesForInnerTriangulation = function (head, cst) {
 // 境界の内外判定と外部三角形の削除
 // すべての三角形について境界との内外判定を行う
 // 三角形の隣接関係を用いれば高速化できるかもしれない
-mcdt.removeOuterTriangles = function (head, points, boundary, holeBounday) {
+mcdt.removeOuterTriangles = function (head, points, boundaryPoints, holeBoundayPoints) {
 	var trinext;
 	for(var tri = head; tri != null; tri = trinext) {
 		trinext = tri.next;
@@ -405,16 +401,16 @@ mcdt.removeOuterTriangles = function (head, points, boundary, holeBounday) {
 		var triCenter = mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
 		triCenter = mcdt.div(mcdt.add(triCenter, points[tri.vertexID[2]]), 3);
 		// 穴境界に含まれれば削除
-		for(var i = 0; i < holeBounday.length; ++i) {
-			if(mcdt.isPointInsideOfBoundary(triCenter, points, holeBounday[i])) {
+		for(var i = 0; i < holeBoundayPoints.length; ++i) {
+			if(mcdt.isPointInsideOfBoundary(triCenter, holeBoundayPoints[i])) {
 				isInHole = true;
 				break;
 			}
 		}
 		// 通常境界のいずれにも含まれなければ削除
 		if(!isInHole) {
-			for(var i = 0; i < boundary.length; ++i) {
-				if(mcdt.isPointInsideOfBoundary(triCenter, points, boundary[i])) {
+			for(var i = 0; i < boundaryPoints.length; ++i) {
+				if(mcdt.isPointInsideOfBoundary(triCenter, boundaryPoints[i])) {
 					isInner = true;
 					break;
 				}
@@ -429,14 +425,15 @@ mcdt.removeOuterTriangles = function (head, points, boundary, holeBounday) {
 }
 
 
-mcdt.isPointInsideOfBoundary = function(p, points, boundary){
+// boundary には境界上の点の座標を格納する
+mcdt.isPointInsideOfBoundary = function(p, boundary){
 	if(p.length == 0) return flase;
 	// +x方向へレイを出す
 	var countxp = 0;
 	var ZERO = 1e-10;
 	var edge;
-	for(var j = 0; j < boundary.length - 1; j++) {
-		edge = new mcdt.LineSeg(points[boundary[j]], points[boundary[j + 1]]);
+	for(var j = 0; j < boundary.length; j++) {
+		edge = new mcdt.LineSeg(boundary[j], boundary[(j+1)%boundary.length]);
 		// pを通りx軸に平行な直線に交わるかどうか
 		var dys = edge.start[1] - p[1];
 		var dye = edge.end[1] - p[1];
@@ -464,9 +461,9 @@ mcdt.isPointInsideOfBoundary = function(p, points, boundary){
 		) {
 			var stEdgeY;	// start側の辺のy座標
 			if(j == 0) {
-				stEdgeY = points[boundary[boundary.length - 2]][1];
+				stEdgeY = boundary[boundary.length - 1][1];
 			} else {
-				stEdgeY = points[boundary[j - 1]][1];
+				stEdgeY = boundary[j - 1][1];
 			}
 			if((edge.end[1] - edge.start[1]) * (stEdgeY - edge.start[1]) >= 0) {
 				continue;
@@ -676,7 +673,7 @@ mcdt.isIntersect = function (s1, s2) {
 	}
 }
 
-mcdt.getSuperTriangle = function (points) {
+mcdt.addSuperTriangleToPoints = function (points) {
 	if(points.length == 0) {
 		return [[0, 0], [0, 0], [0, 0]];
 	}
@@ -714,7 +711,11 @@ mcdt.getSuperTriangle = function (points) {
 	superTri[0] = [cx - 0.5 * l, cy - 1.732 / 6 * l];
 	superTri[1] = [cx + 0.5 * l, cy - 1.732 / 6 * l];
 	superTri[2] = [cx, cy + 1.732 / 3 * l];
-	return superTri;
+
+
+	points.push(superTri[0]);
+	points.push(superTri[1]);
+	points.push(superTri[2]);
 }
 
 
@@ -986,7 +987,6 @@ DelaunayTriangle.swapping = function (stack, newPointID, points, constraint) {
 
 
 // ローソンの探査法
-// ※DelaunayTriangleのプロパティとの依存性なし
 DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint) {
 	// head から順にローソンのアルゴリズムを適用していく
 	var triTmp = head;
@@ -1157,8 +1157,6 @@ mcdt.div = function (x, y) {
 	}
 	return tmp;
 }
-
-
 
 
 
