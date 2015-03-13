@@ -3,17 +3,15 @@
 
 
 // ドロネー三角形分割関数
-// 引数 inputPoints: 入力点の座標 [[x1,y1],[x2,y2],....]
-// 引数 boundary: 閉境界を構成する点のＩＤ[pointID1, pointID2,.... ] 
-//                  ※閉境界であるため最後の要素は先頭の要素と一致するようにする
-//                    一致しない場合，先頭要素と最後の要素をつなぐ辺も拘束される．
-// 引数 holeBoundary: 穴境界を構成する点のＩＤ[pointID1, pointID2,.... ] 
+// 引数 boundaryPoints: 閉境界を構成する点の座標 (例. [[x1, y1], [x2, y2], ...] )
+// 引数 holeBoundaryPoints: 穴境界を構成する点の座標 (例. [[x1, y1], [x2, y2], ...] )
 // 返り値：
 //    オブジェクト
 //    points: 点の座標リスト (inputPointsに加えて点群を内包する大きい三角形の頂点を含む)
 //    head: ドロネー三角形クラスの連結リストの先頭への参照
 function mcdt(boundaryPoints, holeBoundaryPoints) {
 
+	// STEP0: 入力データの作成
 	var resultInputGen = mcdt.generateInputData(boundaryPoints, holeBoundaryPoints);
 
 	// 点の座標を格納する配列
@@ -32,14 +30,19 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	// STEP1: スーパートライアングルの作成
 	// すべての点を内包する
 	// 大きい三角形(superTriangle)の頂点を追加
+	// これを元にドロネー分割の初期三角形を作成
+	// 三角形オブジェクトは連結リストで格納される
+	// headは連結リストの先頭を表す
 	mcdt.addSuperTriangleToPoints(points);
-	var l = points.length;
-	var head = new DelaunayTriangle(points, [l - 3, l - 2, l - 1]);
+	var head = new DelaunayTriangle(points, [points.length - 3, points.length - 2, points.length - 1]);
 
 
 	// STEP2: 点の逐次追加
-	// まず点を内包する三角形をローソン探査法で探し
-	// その後、スワッピングアルゴリズムを用いて分割
+	// まず点を内包する三角形を探し（ローソンの探査法），
+	// その後、スワッピングアルゴリズムを用いて分割．
+	// ローソンの探査法は探査開始三角形の入力が必要．
+	// 探査開始三角形の初期値はheadで
+	// 次の探査開始三角形は前ループの探査結果とする
 	var resultTri = head;
 	for(var i = 0; i < points.length - 3; ++i) {
 		resultTri = DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
@@ -108,52 +111,12 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 
 
 
-function delaunayTriangulation(inputPoints) {
-
-	// 入力点がない場合、強制終了
-	if(inputPoints.length < 3) {
-		return null;
-	}
-	// 頂点座標群と閉境界のデータコピーと整形
-	var points = mcdt.clone(inputPoints);
-
-	// STEP1: スーパートライアングルの作成
-	mcdt.addSuperTriangleToPoints(points);
-	var l = points.length;
-	var head = new DelaunayTriangle(points, [l - 3, l - 2, l - 1]);
-
-	// STEP2: 点の逐次追加
-	var resultTri = head;
-	for(var i = 0; i < points.length - 3; ++i) {
-		resultTri = DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
-		resultTri.addPoint(i, points);
-	}
-
-	// STEP5: スーパートライアングルの削除
-	//head = mcdt.removeSuperTriangle(head, points);
-
-	// 三角形接続リストの作成
-	var conn = [];
-	for(var tri = head; tri != null; tri = tri.next) {
-		conn.push(tri.vertexID);
-	}
-
-	return {
-		points: points,
-		head: head,
-		crossConstraint: null,
-		crossTris: [],
-		connectivity: conn,
-		rmVtx: [],
-		upperVtx: [],
-		lowerVtx: [],
-		adjTris: []
-	};
-}
-
-
 mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints) {
 
+	// 入力された点の座標値はすべて一様に
+	// points 配列に格納する
+	// 格納の順番はboundaryPointsの先頭から開始し
+	// その後，holeBoundaryPointsとする
 	var numPoints = 0;
 	for(var i=0; i<boundaryPoints.length; ++i){
 		numPoints += boundaryPoints[i].length;
@@ -175,27 +138,26 @@ mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints) {
 			++cntPt;
 		}
 	}
-	var boundary = new Array(boundaryPoints.length);
-	var holeBoundary = new Array(holeBoundaryPoints.length);
+	var constraint = new Array(boundaryPoints.length+holeBoundaryPoints.length);
 	var cntBnd = 0;
 	// 閉境界は cst[0]=cst[length-1] となるようにする
-	for(var i = 0; i < boundary.length; ++i) {
-		boundary[i] = new Array(boundaryPoints[i].length);
-		for(var j = 0; j < boundary[i].length; ++j) {
-			boundary[i][j] = cntBnd;
+	for(var i = 0; i < boundaryPoints.length; ++i) {
+		constraint[i] = new Array(boundaryPoints[i].length);
+		for(var j = 0; j < constraint[i].length; ++j) {
+			constraint[i][j] = cntBnd;
 			++cntBnd
 		}
-		boundary[i].push(boundary[i][0]);
+		constraint[i].push(constraint[i][0]);
 	}
-	for(var i = 0; i < holeBoundary.length; ++i) {
-		holeBoundary[i] = new Array(holeBoundaryPoints[i].length);
-		for(var j = 0; j < holeBoundary[i].length; ++j) {
-			holeBoundary[i][j] = cntBnd;
+	var offset = boundaryPoints.length;
+	for(var i = 0; i < holeBoundaryPoints.length; ++i) {
+		constraint[i+offset] = new Array(holeBoundaryPoints[i].length);
+		for(var j = 0; j < constraint[i+offset].length; ++j) {
+			constraint[i+offset][j] = cntBnd;
 			++cntBnd
 		}
-		holeBoundary[i].push(holeBoundary[i][0]);
+		constraint[i+offset].push(constraint[i+offset][0]);
 	}
-	var constraint = boundary.concat(holeBoundary);
 
 	return {
 		points: points,

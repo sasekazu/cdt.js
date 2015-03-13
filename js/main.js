@@ -64,6 +64,9 @@ function initEvents(canvas) {
 		boundaryPoints = [waveResult.points];
 
 		holeBoundaryPoints = [];
+		var circleResult = circle(center0);
+		holeBoundaryPoints.push(circleResult.points);
+		/*
 		var circleResult = circle(center_up);
 		holeBoundaryPoints.push(circleResult.points);
 		circleResult = circle(center_bottom);
@@ -72,6 +75,7 @@ function initEvents(canvas) {
 		holeBoundaryPoints.push(circleResult.points);
 		circleResult = circle(center_right);
 		holeBoundaryPoints.push(circleResult.points);
+		*/
 
 	}
 
@@ -151,14 +155,10 @@ function initEvents(canvas) {
 		//console.log(""+inputPoints);
 
 		// 三角形分割
-		if(false) {
-			var result2 = delaunayTriangulation(inputPoints);
-			drawResult(result2, context, holeBoundary, inputPoints);
-		}
-
 		if(true) {
 			var result = mcdt(boundaryPoints, holeBoundaryPoints);
 			drawResult(result, context, holeBoundary, inputPoints);
+			console.log(result);
 		}
 
 
@@ -200,7 +200,7 @@ function initEvents(canvas) {
 		}
 
 		// 交差三角形と隣接している三角形の描画
-		context.fillStyle = 'lightyellow';
+		context.fillStyle = 'orange';
 		var adjTris = result.adjTris;
 		for(var i = 0; i < adjTris.length; ++i) {
 			if(adjTris[i].isRemoved) {
@@ -220,14 +220,13 @@ function initEvents(canvas) {
 		}
 
 		// 隣接関係の描画
-		//drawAdjacents(canvas, points, head);
+		drawAdjacents(canvas, points, head);
 
 
 		// 三角形headの描画
-		/*
 		if(head != null) {
 			context.globalAlpha = 0.2;
-			context.fillStyle = 'gray';
+			context.fillStyle = 'darkgray';
 			context.beginPath();
 			context.moveTo(points[head.vertexID[0]][0], points[head.vertexID[0]][1]);
 			context.lineTo(points[head.vertexID[1]][0], points[head.vertexID[1]][1]);
@@ -236,10 +235,8 @@ function initEvents(canvas) {
 			context.fill();
 			context.globalAlpha = 1;
 		}
-		*/
 
 		// 拘束辺の描画
-		/*
 		context.strokeStyle = 'lightgreen';
 		context.lineWidth = 6;
 		context.beginPath();
@@ -254,10 +251,8 @@ function initEvents(canvas) {
 			context.stroke();
 		}
 		context.lineWidth = 1;
-		*/
 
 		// 穴境界の描画
-		/*
 		context.strokeStyle = 'lightblue';
 		context.lineWidth = 6;
 		context.beginPath();
@@ -272,7 +267,6 @@ function initEvents(canvas) {
 			context.stroke();
 		}
 		context.lineWidth = 1;
-		*/
 
 		// 拘束に失敗している辺の描画
 		context.strokeStyle = 'red';
@@ -290,6 +284,7 @@ function initEvents(canvas) {
 
 		// 三角形の描画
 		context.strokeStyle = 'black';
+		context.fillStyle = 'lightyellow';
 		drawTrianglesFromHead(canvas, points, head);
 		/*
 		for(var i = 0; i < conn.length; ++i) {
@@ -317,7 +312,6 @@ function initEvents(canvas) {
 		}
 		drawPoints(canvas, rmPoints, 1);
 
-		/*
 		// upperVtx
 		context.fillStyle='purple';
 		context.strokeStyle='purple';
@@ -354,7 +348,6 @@ function initEvents(canvas) {
 		}
 		context.stroke();
 		context.lineWidth=1;
-		*/
 	}
 }
 
