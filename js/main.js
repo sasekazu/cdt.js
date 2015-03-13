@@ -18,14 +18,14 @@ function initEvents(canvas) {
 	var inputPoints = [];	// 入力頂点
 	var points = [];	// 頂点の座標群
 	var head = [];	// DelaunayTriangleクラスのインスタンス配列
-	var constraint = [];	// 拘束辺
 	var holeBoundary = [];	// 穴の境界
+	var boundaryPoints = [];
+	var holeBoundaryPoints = [];
 
 	var selectPoint = null;
 
 	function circle(center) {
 		var inputPoints = [];
-		var constraint = [];
 		var r = 0.06 * canvasHeight;
 		var thDiv = 20;
 		var th;
@@ -33,17 +33,12 @@ function initEvents(canvas) {
 			th = 2 * Math.PI / thDiv * i;
 			inputPoints.push([center[0] + r * Math.cos(th), center[1] + r * Math.sin(th)]);
 		}
-		for(var j = 0; j < inputPoints.length; ++j) {
-			constraint.push(j);
-		}
-		constraint.push(0);
-		return { points: inputPoints, constraint: constraint };
+		return { points: inputPoints};
 	}
 
 
 	function waveCircle(center) {
 		var inputPoints = [];
-		var constraint = [];
 		var rad = 0.3 * canvasHeight;
 		var innerRad = 0.1 * rad;
 		var thDiv = 150;
@@ -55,11 +50,7 @@ function initEvents(canvas) {
 			r = rad + innerRad * Math.sin(numWave * th);
 			inputPoints.push([center[0] + r * Math.cos(th), center[1] + r * Math.sin(th)]);
 		}
-		for(var j = 0; j < inputPoints.length; ++j) {
-			constraint.push(j);
-		}
-		constraint.push(0);
-		return { points: inputPoints, constraint: constraint };
+		return { points: inputPoints };
 	}
 
 	function makeInputData() {
@@ -70,50 +61,17 @@ function initEvents(canvas) {
 		var center_right = [canvasWidth * 0.6, canvasHeight * 0.5];
 		var waveResult = waveCircle(center0);
 		inputPoints = waveResult.points;
-		constraint = [waveResult.constraint];
-		/*
-		var tmp = [];
-		waveResult = waveCircle(center2);
-		for(var i = 0; i < waveResult.constraint.length; ++i) {
-			tmp.push(waveResult.constraint[i]+inputPoints.length);
-		}
-		constraint.push(tmp);
-		inputPoints = inputPoints.concat(waveResult.points);
-		*/
+		boundaryPoints = [waveResult.points];
 
+		holeBoundaryPoints = [];
 		var circleResult = circle(center_up);
-		holeBoundary = [];
-		tmp = [];
-		for(var i = 0; i < circleResult.constraint.length; ++i) {
-			tmp.push(circleResult.constraint[i] + inputPoints.length);
-		}
-		holeBoundary.push(tmp);
-		inputPoints = inputPoints.concat(circleResult.points);
-
+		holeBoundaryPoints.push(circleResult.points);
 		circleResult = circle(center_bottom);
-		tmp = [];
-		for(var i = 0; i < circleResult.constraint.length; ++i) {
-			tmp.push(circleResult.constraint[i] + inputPoints.length);
-		}
-		holeBoundary.push(tmp);
-		inputPoints = inputPoints.concat(circleResult.points);
-
+		holeBoundaryPoints.push(circleResult.points);
 		circleResult = circle(center_left);
-		tmp = [];
-		for(var i = 0; i < circleResult.constraint.length; ++i) {
-			tmp.push(circleResult.constraint[i] + inputPoints.length);
-		}
-		holeBoundary.push(tmp);
-		inputPoints = inputPoints.concat(circleResult.points);
-
+		holeBoundaryPoints.push(circleResult.points);
 		circleResult = circle(center_right);
-		tmp = [];
-		for(var i = 0; i < circleResult.constraint.length; ++i) {
-			tmp.push(circleResult.constraint[i] + inputPoints.length);
-		}
-		holeBoundary.push(tmp);
-		inputPoints = inputPoints.concat(circleResult.points);
-
+		holeBoundaryPoints.push(circleResult.points);
 
 	}
 
@@ -123,32 +81,8 @@ function initEvents(canvas) {
 
 	// mouseクリック時のイベントコールバック設定
 	canvas.mousedown(function (event) {
-		// 左クリック
-		//		if(event.button == 0) {
-		if(false){
-			var canvasOffset = canvas.offset();
-			var canvasX = Math.floor(event.pageX - canvasOffset.left);
-			var canvasY = Math.floor(event.pageY - canvasOffset.top);
-			if(canvasX < 0 || canvasX > canvasWidth) {
-				return;
-			}
-			if(canvasY < 0 || canvasY > canvasHeight) {
-				return;
-			}
-			inputPoints.push([canvasX, canvasY]);
-			if(inputPoints.length == 2) {
-				constraint.push(0);
-				constraint.push(1);
-				constraint.push(0);
-			} else if(inputPoints.length > 2) {
-				constraint.pop();
-				constraint.push(inputPoints.length - 1);
-				constraint.push(0);
-			}
-			draw();
-		}
-			// 右クリック
-		else if(event.button == 2 || event.button == 0) {
+		// 右クリック
+		if(event.button == 2 || event.button == 0) {
 			var canvasOffset = canvas.offset();
 			var canvasX = Math.floor(event.pageX - canvasOffset.left);
 			var canvasY = Math.floor(event.pageY - canvasOffset.top);
@@ -200,7 +134,6 @@ function initEvents(canvas) {
 		inputPoints = [];
 		points = [];
 		head = [];
-		constraint = [];
 		selectPoint = null;
 
 		makeInputData();
@@ -212,29 +145,26 @@ function initEvents(canvas) {
 	// レンダリングのリフレッシュを行う関数
 	function draw() {
 
-
 		var context = canvas.get(0).getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
 
-
 		//console.log(""+inputPoints);
-		//console.log(""+constraint);
 
 		// 三角形分割
 		if(false) {
 			var result2 = delaunayTriangulation(inputPoints);
-			drawResult(result2, context, constraint, holeBoundary, inputPoints);
+			drawResult(result2, context, holeBoundary, inputPoints);
 		}
 
 		if(true) {
-			var result = mcdt(inputPoints, constraint, holeBoundary);
-			drawResult(result, context, constraint, holeBoundary, inputPoints);
+			var result = mcdt(boundaryPoints, holeBoundaryPoints);
+			drawResult(result, context, holeBoundary, inputPoints);
 		}
 
 
 	}
 
-	function drawResult(result, context, constraint, holeBoundary, inputPoints) {
+	function drawResult(result, context, holeBoundary, inputPoints) {
 		if(result == null) {
 			// 点の描画
 			context.fillStyle = 'black';
@@ -313,31 +243,32 @@ function initEvents(canvas) {
 		context.strokeStyle = 'lightgreen';
 		context.lineWidth = 6;
 		context.beginPath();
-		for(var j = 0; j < constraint.length; ++j) {
-			if(constraint[j].length != 0) {
-				context.moveTo(inputPoints[constraint[j][0]][0], inputPoints[constraint[j][0]][1]);
+		for(var j = 0; j < boundaryPoints.length; ++j) {
+			if(boundaryPoints[j].length != 0) {
+				context.moveTo(boundaryPoints[j][0][0], boundaryPoints[j][0][1]);
 			}
-			for(var i = 1; i < constraint[j].length; ++i) {
-				context.lineTo(inputPoints[constraint[j][i]][0], inputPoints[constraint[j][i]][1]);
+			for(var i = 1; i < boundaryPoints[j].length; ++i) {
+				context.lineTo(boundaryPoints[j][i][0], boundaryPoints[j][i][1]);
 			}
+			context.lineTo(boundaryPoints[j][0][0], boundaryPoints[j][0][1]);
 			context.stroke();
 		}
 		context.lineWidth = 1;
 		*/
-
 
 		// 穴境界の描画
 		/*
 		context.strokeStyle = 'lightblue';
 		context.lineWidth = 6;
 		context.beginPath();
-		for(var j = 0; j < holeBoundary.length; ++j) {
-			if(holeBoundary[j].length != 0) {
-				context.moveTo(inputPoints[holeBoundary[j][0]][0], inputPoints[holeBoundary[j][0]][1]);
+		for(var j = 0; j < holeBoundaryPoints.length; ++j) {
+			if(holeBoundaryPoints[j].length != 0) {
+				context.moveTo(holeBoundaryPoints[j][0][0], holeBoundaryPoints[j][0][1]);
 			}
-			for(var i = 1; i < holeBoundary[j].length; ++i) {
-				context.lineTo(inputPoints[holeBoundary[j][i]][0], inputPoints[holeBoundary[j][i]][1]);
+			for(var i = 1; i < holeBoundaryPoints[j].length; ++i) {
+				context.lineTo(holeBoundaryPoints[j][i][0], holeBoundaryPoints[j][i][1]);
 			}
+			context.lineTo(holeBoundaryPoints[j][0][0], holeBoundaryPoints[j][0][1]);
 			context.stroke();
 		}
 		context.lineWidth = 1;

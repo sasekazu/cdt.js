@@ -12,8 +12,12 @@
 //    オブジェクト
 //    points: 点の座標リスト (inputPointsに加えて点群を内包する大きい三角形の頂点を含む)
 //    head: ドロネー三角形クラスの連結リストの先頭への参照
-function mcdt(inputPoints, boundary, holeBoundary) {
+function mcdt(boundaryPoints, holeBoundaryPoints) {
 
+	var resultInputGen = mcdt.generateInputData(boundaryPoints, holeBoundaryPoints);
+	var inputPoints = resultInputGen.inputPoints;
+	var bnd = resultInputGen.boundary;
+	var hbnd = resultInputGen.holeBoundary;
 	// 入力点が3以下の場合、強制終了
 	if(inputPoints.length < 3) {
 		return null;
@@ -21,8 +25,6 @@ function mcdt(inputPoints, boundary, holeBoundary) {
 
 	// 頂点座標群と閉境界のデータコピーと整形
 	var points = mcdt.clone(inputPoints);
-	var bnd = mcdt.cloneAndModifyBoundary(boundary);	// boundaries
-	var hbnd = mcdt.cloneAndModifyBoundary(holeBoundary);	// hole boundaries
 	var cst = mcdt.clone(bnd).concat(hbnd);		// constrains
 
 	// STEP1: スーパートライアングルの作成
@@ -154,18 +156,58 @@ function delaunayTriangulation(inputPoints) {
 }
 
 
+mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints) {
 
-// 閉境界のデータコピーと整形
-// 閉境界は cst[0]=cst[length-1] となるようにする
-mcdt.cloneAndModifyBoundary = function(bnd) {
-	var tmp = mcdt.clone(bnd);
-	for(var i = 0; i < tmp.length; ++i) {
-		if(tmp[i][0] != tmp[i][tmp[i].length - 1]) {
-			tmp[i].push(tmp[i][0]);
+	var numPoints = 0;
+	for(var i=0; i<boundaryPoints.length; ++i){
+		numPoints += boundaryPoints[i].length;
+	}
+	for(var i=0; i<holeBoundaryPoints.length; ++i){
+		numPoints += holeBoundaryPoints[i].length;
+	}
+	var inputPoints = new Array(numPoints);
+	var cntPt = 0;
+	for(var i = 0; i < boundaryPoints.length; ++i) {
+		for(var j = 0; j < boundaryPoints[i].length; ++j) {
+			inputPoints[cntPt] = mcdt.clone(boundaryPoints[i][j]);
+			++cntPt;
 		}
 	}
-	return tmp;
+	for(var i = 0; i < holeBoundaryPoints.length; ++i) {
+		for(var j = 0; j < holeBoundaryPoints[i].length; ++j) {
+			inputPoints[cntPt] = mcdt.clone(holeBoundaryPoints[i][j]);
+			++cntPt;
+		}
+	}
+	var boundary = new Array(boundaryPoints.length);
+	var holeBoundary = new Array(holeBoundaryPoints.length);
+	var cntBnd = 0;
+	// 閉境界は cst[0]=cst[length-1] となるようにする
+	for(var i = 0; i < boundary.length; ++i) {
+		boundary[i] = new Array(boundaryPoints[i].length);
+		for(var j = 0; j < boundary[i].length; ++j) {
+			boundary[i][j] = cntBnd;
+			++cntBnd
+		}
+		boundary[i].push(boundary[i][0]);
+	}
+	for(var i = 0; i < holeBoundary.length; ++i) {
+		holeBoundary[i] = new Array(holeBoundaryPoints[i].length);
+		for(var j = 0; j < holeBoundary[i].length; ++j) {
+			holeBoundary[i][j] = cntBnd;
+			++cntBnd
+		}
+		holeBoundary[i].push(holeBoundary[i][0]);
+	}
+
+	return {
+		inputPoints: inputPoints,
+		boundary: boundary,
+		holeBoundary: holeBoundary
+	}
 }
+
+
 
 mcdt.removeCrossTriAndExtractOuterEdge = function (crossTri, head) {
 	// 交差三角形の隣接三角形として登録されているものをすべて抽出する
