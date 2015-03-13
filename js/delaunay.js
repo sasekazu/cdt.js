@@ -15,15 +15,12 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 
 	// STEP0: 入力データの作成
 	var resultInputGen = mcdt.generateInputData(boundaryPoints, holeBoundaryPoints);
-
 	// 点の座標を格納する配列
 	var points = resultInputGen.points;
-
 	// cst: constrainsの略
 	// 閉境界を構成する点のID [pointID1, pointID2,.... ] 
 	// 先頭要素 = 最終要素 となるように作成される
 	var cst = resultInputGen.constraint;		
-
 	// 入力点が3以下の場合、強制終了
 	if(points.length < 3) {
 		return null;
@@ -86,6 +83,11 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	// STEP5: 境界の内外判定と外部三角形の削除
 	head = mcdt.removeOuterTriangles(head, points, boundaryPoints, holeBoundaryPoints);
 
+	// STEP6: 三角形の品質向上のための平滑化
+	var dataForSmoothing = mcdt.dataForSmoothing(head, points, cst);
+	for(var i = 0; i < 10; ++i) {
+		mcdt.smoothing(points, dataForSmoothing);
+	}
 
 	// 三角形接続リストの作成
 	var conn = [];
@@ -100,6 +102,73 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	};
 }
 
+
+
+mcdt.dataForSmoothing = function (head, points, cst) {
+	// 点が境界上であるかどうかを判別するフラグ配列の作成
+	var isOnBoundary = new Array(points.length);
+	for(var i = 0; i < isOnBoundary.length; ++i) {
+		isOnBoundary[i] = false;
+	}
+	for(var i = 0; i < cst.length; ++i) {
+		for(var j=0; j<cst[i].length; ++j){
+			isOnBoundary[cst[i][j]] = true;
+		}
+	}
+	// 点からその点を共有する三角形へアクセスする配列の作成
+	var posToTri = new Array(points.length);
+	for(var i = 0; i < points.length; ++i) {
+		posToTri[i] = [];
+	}
+	for(var tri = head; tri != null; tri = tri.next) { 
+		posToTri[tri.vertexID[0]].push(tri);
+		posToTri[tri.vertexID[1]].push(tri);
+		posToTri[tri.vertexID[2]].push(tri);
+	}
+	return {isOnBoundary: isOnBoundary, posToTri: posToTri};
+}
+
+// 三角形の品質向上のための平滑化処理
+// ラプラシアンスムージングを行う．
+// すなわち，それぞれの内部頂点について
+// 辺で結合している周辺頂点の重心を新たな座標とする
+mcdt.smoothing = function(points, data){
+	var isOnBoundary = data.isOnBoundary;
+	var posToTri = data.posToTri;
+	// 平滑化
+	var outputPoints = mcdt.clone(points);
+	for(var i = 0; i < points.length; ++i) {
+		// 点が境界上であれば何もしない
+		if(isOnBoundary[i]) {
+			continue;
+		}
+		// 点を共有する三角形から頂点番号を抽出
+		var surroundVtx = [];
+		for(var j = 0; j < posToTri[i].length; ++j) {
+			surroundVtx.push(posToTri[i][j].vertexID[0]);
+			surroundVtx.push(posToTri[i][j].vertexID[1]);
+			surroundVtx.push(posToTri[i][j].vertexID[2]);
+		}
+		// 重複する頂点IDを削除
+		surroundVtx = surroundVtx.filter(function (x, ii, self) {
+			return self.indexOf(x) === ii;
+		});
+		// 着目している頂点IDを削除
+		surroundVtx = surroundVtx.filter(function (x) {
+			return x !== i;
+		});
+
+		var tmp = [0,0];
+		for(var j = 0; j < surroundVtx.length; ++j) {
+			tmp = mcdt.add(tmp, points[surroundVtx[j]]);
+		}
+		outputPoints[i] = mcdt.div(tmp, surroundVtx.length);
+	}
+
+	for(var i = 0; i < points.length; ++i) {
+		points[i] = mcdt.clone(outputPoints[i]);
+	}
+}
 
 
 mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints, triSize) {
