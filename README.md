@@ -6,9 +6,16 @@ cdt.js
 
 
 
-## License
+License
+---
 * MIT
     * see LICENSE
+
+Demo
+---
+[Interactive demo](http://sasekazu.github.io/cdt.js/example)
+
+![rectangle](img/demo.gif)
 
 Install
 ---

@@ -1,4 +1,9 @@
 // JavaScript Document
+/// <reference path="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" />
+
+var colors = ['lightsalmon', 'lightseagreen', 'aquamarine', 'beige', 'burlywood', 'mistyrose', 'mediumpurple', 'darkcyan', 'darkgray', 'orchid', 'peru', 'dodgerblue'];
+var N = 1000;
+var distMin = 10;
 
 $(document).ready(function () {
 	initEvents($("#myCanvas"));
@@ -9,7 +14,11 @@ function initEvents(canvas) {
 
 	var canvasWidth = canvas.width();
 	var canvasHeight = canvas.height();
+
 	var inputPoints = [];	// 入力頂点
+	var points = [];	// 頂点の座標群
+	var head = [];	// DelaunayTriangleクラスのインスタンス配列
+	var holeBoundary = [];	// 穴の境界
 	var boundaryPoints = [];
 	var holeBoundaryPoints = [];
 
@@ -17,8 +26,8 @@ function initEvents(canvas) {
 
 	function circle(center) {
 		var inputPoints = [];
-		var r = 0.1 * canvasHeight;
-		var thDiv = 10;
+		var r = 0.06 * canvasHeight;
+		var thDiv = 20;
 		var th;
 		for(var i = 0; i < thDiv; ++i) {
 			th = 2 * Math.PI / thDiv * i;
@@ -31,30 +40,42 @@ function initEvents(canvas) {
 	function waveCircle(center) {
 		var inputPoints = [];
 		var rad = 0.3 * canvasHeight;
-		var innerRad = 0.3 * rad;
-		var thDiv = 40;
-		var numWave = 5;
+		var innerRad = 0.1 * rad;
+		var thDiv = 150;
+		var numWave = 20;
 		var th;
 		var r;
 		for(var i = 0; i < thDiv; ++i) {
 			th = 2 * Math.PI / thDiv * i;
-			r = rad + innerRad * Math.sin(numWave * th + Math.PI);
+			r = rad + innerRad * Math.sin(numWave * th);
 			inputPoints.push([center[0] + r * Math.cos(th), center[1] + r * Math.sin(th)]);
 		}
 		return { points: inputPoints };
 	}
 
 	function makeInputData() {
-		var center = [canvasWidth * 0.5, canvasHeight * 0.5];
-		var waveResult = waveCircle(center);
-		inputPoints = new Array(2);
-		inputPoints[0] = waveResult.points;
+		var center0 = [canvasWidth * 0.5, canvasHeight * 0.5];
+		var center_up = [canvasWidth * 0.5, canvasHeight * 0.5 + canvasWidth * 0.1];
+		var center_bottom = [canvasWidth * 0.5, canvasHeight * 0.5 - canvasWidth * 0.1];
+		var center_left = [canvasWidth * 0.4, canvasHeight * 0.5];
+		var center_right = [canvasWidth * 0.6, canvasHeight * 0.5];
+		var waveResult = waveCircle(center0);
+		inputPoints = waveResult.points;
 		boundaryPoints = [waveResult.points];
 
+
 		holeBoundaryPoints = [];
-		var circleResult = circle(center);
+		var circleResult = circle(center0);
 		holeBoundaryPoints.push(circleResult.points);
-		inputPoints[1] = circleResult.points;
+		return;
+		var circleResult = circle(center_up);
+		holeBoundaryPoints.push(circleResult.points);
+		circleResult = circle(center_bottom);
+		holeBoundaryPoints.push(circleResult.points);
+		circleResult = circle(center_left);
+		holeBoundaryPoints.push(circleResult.points);
+		circleResult = circle(center_right);
+		holeBoundaryPoints.push(circleResult.points);
 
 	}
 
@@ -64,7 +85,7 @@ function initEvents(canvas) {
 
 	// mouseクリック時のイベントコールバック設定
 	canvas.mousedown(function (event) {
-		// 左クリック or 右クリック
+		// 右クリック
 		if(event.button == 2 || event.button == 0) {
 			var canvasOffset = canvas.offset();
 			var canvasX = Math.floor(event.pageX - canvasOffset.left);
@@ -78,12 +99,10 @@ function initEvents(canvas) {
 			var clickPos = [canvasX, canvasY];
 			var dist;
 			for(var i = 0; i < inputPoints.length; ++i) {
-				for(var j = 0; j < inputPoints[i].length; ++j) {
-					dist = util.norm2(util.sub(inputPoints[i][j], clickPos));
-					if(dist < 10) {
-						selectPoint = [i, j];
-						break;
-					}
+				dist = util.norm2(util.sub(inputPoints[i], clickPos));
+				if(dist < 10) {
+					selectPoint = i;
+					break;
 				}
 			}
 		}
@@ -100,7 +119,7 @@ function initEvents(canvas) {
 			return;
 		}
 		if(selectPoint != null) {
-			inputPoints[selectPoint[0]][selectPoint[1]] = [canvasX, canvasY];
+			inputPoints[selectPoint] = [canvasX, canvasY];
 			draw();
 		}
 	});
@@ -118,8 +137,11 @@ function initEvents(canvas) {
 	$("#reset").click(function () {
 		inputPoints = [];
 		points = [];
+		head = [];
 		selectPoint = null;
+
 		makeInputData();
+
 		draw();
 	});
 
@@ -130,28 +152,28 @@ function initEvents(canvas) {
 		var context = canvas.get(0).getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
 
-		var innerTriangulation = $('#innerCheckbox:checked').val() 
+		//console.log(""+inputPoints);
 
 		// 三角形分割
-		var option;
-		if(innerTriangulation) {
-			option = { triSize: 'auto'}
+		if(true) {
+			var option = { triSize: 'auto' }
+			var result = cdt(boundaryPoints, holeBoundaryPoints, option);
+			drawResult(result, context, holeBoundary, inputPoints);
 		}
-		var result = cdt(boundaryPoints, holeBoundaryPoints, option);
-		drawResult(result, context, inputPoints);
+
 
 	}
 
-	function drawResult(result, context, inputPoints) {
+	function drawResult(result, context, holeBoundary, inputPoints) {
 		if(result == null) {
 			// 点の描画
 			context.fillStyle = 'black';
-			drawPoints(canvas, inputPoints[0], 3);
-			drawPoints(canvas, inputPoints[1], 3);
+			drawPoints(canvas, inputPoints, 3);
 			return;
 		}
-		var points = result.points;
-		var conn = result.connectivity;
+		points = result.points;
+		conn = result.connectivity;
+
 
 		// 三角形の描画
 		context.strokeStyle = 'black';
@@ -167,10 +189,10 @@ function initEvents(canvas) {
 		}
 
 		// 境界の描画
+		/*
 		context.strokeStyle = 'lightgreen';
 		context.lineWidth = 6;
 		context.beginPath();
-		context.globalAlpha = 0.5;
 		for(var j = 0; j < boundaryPoints.length; ++j) {
 			if(boundaryPoints[j].length != 0) {
 				context.moveTo(boundaryPoints[j][0][0], boundaryPoints[j][0][1]);
@@ -182,12 +204,10 @@ function initEvents(canvas) {
 			context.stroke();
 		}
 		context.lineWidth = 1;
-		context.globalAlpha = 1.0;
 
 		// 穴境界の描画
 		context.strokeStyle = 'lightblue';
 		context.lineWidth = 6;
-		context.globalAlpha = 0.5;
 		context.beginPath();
 		for(var j = 0; j < holeBoundaryPoints.length; ++j) {
 			if(holeBoundaryPoints[j].length != 0) {
@@ -200,13 +220,17 @@ function initEvents(canvas) {
 			context.stroke();
 		}
 		context.lineWidth = 1;
-		context.globalAlpha = 1.0;
-
+		*/
+		
 		// 点の描画
 		context.fillStyle = 'black';
 		drawPoints(canvas, points, 2);
 	}
 }
+
+
+// 以下、描画関係
+
 
 function drawPoints(canvas, points, rad) {
 	var context = canvas.get(0).getContext("2d");
@@ -220,10 +244,112 @@ function drawPoints(canvas, points, rad) {
 	}
 }
 
+function drawTrianglesFromHead(canvas, points, head) {
+	var context = canvas.get(0).getContext("2d");
+	var canvasWidth = canvas.width();
+	var canvasHeight = canvas.height();
+	context.setTransform(1, 0, 0, 1, 0, 0);
+	for(var tri = head; tri != null; tri = tri.next) {
+		context.beginPath();
+		context.moveTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
+		context.lineTo(points[tri.vertexID[1]][0], points[tri.vertexID[1]][1]);
+		context.lineTo(points[tri.vertexID[2]][0], points[tri.vertexID[2]][1]);
+		context.lineTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
+		context.stroke();
+		context.fill();
+	}
+}
+
+
+function fillTrianglesFromHead(canvas, points, head) {
+	var context = canvas.get(0).getContext("2d");
+	var canvasWidth = canvas.width();
+	var canvasHeight = canvas.height();
+	context.setTransform(1, 0, 0, 1, 0, 0);
+	var i = 0;
+	for(var tri = head; tri != null; tri = tri.next) {
+		context.fillStyle = colors[i % colors.length];
+		context.beginPath();
+		context.moveTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
+		context.lineTo(points[tri.vertexID[1]][0], points[tri.vertexID[1]][1]);
+		context.lineTo(points[tri.vertexID[2]][0], points[tri.vertexID[2]][1]);
+		context.lineTo(points[tri.vertexID[0]][0], points[tri.vertexID[0]][1]);
+		context.fill();
+		++i;
+	}
+}
+
+
+// 三角形の外接円を描画
+function drawCircumcirclesFromHead(canvas, points, head) {
+	var context = canvas.get(0).getContext("2d");
+	var cir;
+	var i = 0;
+	context.globalAlpha = 0.3;
+	for(var tri = head; tri != null; tri = tri.next) {
+		context.fillStyle = colors[i % colors.length];
+		context.beginPath();
+		cir = new DelaunayTriangle.Circumcircle(points[tri.vertexID[0]], points[tri.vertexID[1]], points[tri.vertexID[2]]);
+		context.arc(cir.p[0], cir.p[1], cir.rad, 0, Math.PI * 2, true);
+		context.fill();
+		++i;
+	}
+	context.globalAlpha = 1.0;
+}
+
+
+
+function drawAdjacents(canvas, points, head) {
+	var context = canvas.get(0).getContext("2d");
+	var v1 = [];
+	var v2 = [];
+	var v12 = [];
+	var edgeMid = [];
+	for(var tri = head; tri != null; tri = tri.next) {
+		if(tri.isRemoved) {
+			console.log("removed が　混じってるぞ");
+			continue;
+		}
+		context.strokeStyle = 'orange';
+		//context.strokeStyle = 'blue';
+		v1 = util.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
+		v1 = util.div(util.add(v1, points[tri.vertexID[2]]), 3);
+		for(var j = 0; j < 3; ++j) {
+			if(tri.adjacent[j] == null) {
+				continue;
+			}
+			if(tri.adjacent[j].adjacent[tri.edgeIDinAdjacent[j]]!==tri){
+				continue;
+			}
+
+			// ボロノイ図的な図の描画のため
+			v2 = util.add(points[tri.adjacent[j].vertexID[0]], points[tri.adjacent[j].vertexID[1]]);
+			v2 = util.div(util.add(v2, points[tri.adjacent[j].vertexID[2]]), 3);
+			v12 = util.sub(v2, v1);
+			v12 = util.mul(0.48, v12);
+			edgeMid = util.add(v1, v12);
+
+			// 隣接三角形の辺の中点
+			/*
+			edgeMid = util.add(points[tri.adjacent[j].vertexID[tri.edgeIDinAdjacent[j]]], points[tri.adjacent[j].vertexID[(tri.edgeIDinAdjacent[j] + 1) % 3]]);
+			edgeMid = util.mul(edgeMid, 0.5);
+			*/
+
+			context.beginPath();
+			context.moveTo(v1[0], v1[1]);
+			context.lineTo(edgeMid[0], edgeMid[1]);
+			context.stroke();
+		}
+	}
+}
+
+
 
 // 配列処理
 
 function util() { };
+
+
 util.clone = function (src) {
 	if(src.length == 0) {
 		return [];

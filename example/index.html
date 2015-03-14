@@ -6,8 +6,7 @@
 		<title>DelaunayTriangulation</title>
 		<link rel="stylesheet" type="text/css" href="css/normalize.css" />
 		<link rel="stylesheet" type="text/css" href="css/index.css">
-<!--	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>-->
-		<script type="text/javascript" src="jquery-1.11.1.min.js"></script>
+	<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
 <!--		<script type="text/javascript" src="../src/cdt.js"></script>    -->
 		<script type="text/javascript" src="../dist/cdt-0.1.min.js"></script>    
 		<script type="text/javascript" src="main.js"></script>    
@@ -16,37 +15,17 @@
 		<div id="page">
 			<div>
 				<p>
-					制約付ドロネー三角形分割のデモプログラム（作成中）。<br />
-					<!--
-					クリックで境界上の点を追加。
-					マウス右ボタンで点をドラッグして動かせる。
-						-->
-					マウスドラッグで点を動かせる。<br />
-					緑の線が境界、青の線が穴の境界。<br />
-					境界が交差すると三角形分割できない。
+					Points on boundaries can be picked and moved by mouse.
+					Green line is an outer boundary and blue line is an inner (hole) boundary.
 				</p>
 			</div>
 			<div>
 				<input type="button" value="Reset" id="reset" style="margin: 10px;">
-				<label><input id="gaisetuenCheckBox" type="checkbox">外接円の描画</label>
+				<label><input id="innerCheckbox" type="checkbox">Add nodes inside of boundaries</label>
 			</div>
 			<div>
 				<canvas id="myCanvas" width="600" height="400" style="border: solid 1px;" oncontextmenu="return false"></canvas>
 			</div>
-			<div>
-				<h3>ソースコード</h3>
-				<ul>
-					<li><a href="https://github.com/sasekazu/constrained-delaunay-triangulation">GitHub</a></li>
-				</ul>
-				<h4>参考資料</h4>
-				<ul>
-					<li>谷口健男，FEMのための要素自動分割，森北出版，1992.</li>
-					<li>理研・井尻氏，ドロネー三角形分割 <a href="http://www.riken.jp/brict/Ijiri/study/DelaunayTriangulation.htm">http://www.riken.jp/brict/Ijiri/study/DelaunayTriangulation.htm</a></li>
-				</ul>
-			</div>
 		</div>
-		<footer style="text-align: center;">
-			<a href="http://www.sasekazu.info">sasekazu.info</a>
-		</footer>
 	</body>
 </html>
