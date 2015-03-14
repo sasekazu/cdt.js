@@ -5,6 +5,11 @@ cdt.js
 `cdt.js`は，二次元空間における境界内部を三角形分割する関数を提供します．三角形分割のアルゴリズムは，『谷口健男著，FEMのための要素自動分割，森北出版』を参考にした，拘束ドロネー三角分割 (Constrained Delaunay Triangulation, CDT) に基づいて実装されています．二次元空間における分割対象領域を多角形で合わらわされる境界で定義し，その内部を三角形分割します．領域内部への節点追加配置にも対応し，簡易的な有限要素法 (Finite Element Method, FEM) のプリプロセッサとして用いることもできます．
 
 
+
+## License
+* MIT
+    * see LICENSE
+
 Install
 ---
 `dist/cdt-0.1.min.js` を直接読み込んで使用します．
@@ -80,12 +85,14 @@ var result = cdt([polygonPoints0],[polygonPoints1]);
 
 Example - Multiple boundary
 ---
-複数境界の分割には多角形の頂点座標配列をまとめた配列を作成します．
-例えば，上記と同様の手順で`polygonPoints0`, `polygonPoints1`, `hpolygonPoints2` を作成したとします．`polygonPoints0`によって外部境界を，`polygonPoints1`, `polygonPoints2`によって穴境界を定義したい場合，以下のような配列を作成します．
+以下のように`polygonPoints0`, `polygonPoints1`, `hpolygonPoints2` を作成したとします．
 ```javascript
-var polygonPoints0 = [[100, 100], [300, 100], [300, 200], [100, 200]];
-var polygonPoints1 = [[170, 170], [130, 170], [130, 130], [170, 130]];
-var polygonPoints2 = [[270, 170], [230, 170], [230, 130], [270, 130]];
+var polygonPoints0 = [[100, 100], [300, 100], [300, 200], [100, 200]];	// 大きい長方形
+var polygonPoints1 = [[170, 170], [130, 170], [130, 130], [170, 130]];	// 小さい正方形（左寄り）
+var polygonPoints2 = [[270, 170], [230, 170], [230, 130], [270, 130]];	// 小さい正方形（右寄り）
+```
+`polygonPoints0`によって外部境界を，`polygonPoints1`, `polygonPoints2`によって穴境界を定義したい場合，以下のような配列を作成します．
+```javascript
 var boundary = [polygonPoints0];
 var holeBoundary = [polygonPoints1, polygonPoints2];
 ```
@@ -93,35 +100,46 @@ var holeBoundary = [polygonPoints1, polygonPoints2];
 ```javascript
 var result = cdt(bounday, holeBoundary);
 ```
-
+分割結果は大きい長方形の内部に二つの小さい穴が生成されます．
 ![rectangle with hole](img/multiple1.png)
 
+`polygonPoints0`と`polygonPoints1`によって外部境界を，`polygonPoints2`によって穴境界を定義したい場合，以下のような配列を作成します．
 ```javascript
-var boundary = [polygonPoints0];
-var holeBoundary = [polygonPoints1, polygonPoints2];
+var boundary = [polygonPoints0, polygonPoints1];
+var holeBoundary = [polygonPoints2];
 ```
-
+分割結果は下のようになります．
 ![rectangle with hole](img/multiple2.png)
+このように外部境界が他の境界の内側にある場合は，その境界上の辺が分割後も保存されるように分割されます．このような分割が求めらえれるFEMのメッシュ分割にも用いることができます．
 
+次に`polygonPoints1`と`polygonPoints2`によって外部境界を作成する場合，
+以下のように配列を作成します．
 ```javascript
 var boundary = [polygonPoints1, polygonPoints2];
 var holeBoundary = [];
 ```
-
+分割結果は以下のようになります．
 ![rectangle with hole](img/multiple3.png)
+外部境界が分離している場合でも，`result.points`, `result.connectivity`にひとまとめに結果が出力されます．
 
 Example - Inner points addition
 ---
-境界内部に節点を追加して
-
+FEMのための解析用メッシュに用いるには，領域内部を詳細に三角形分割をすることが求められます．
+例えば，歯車のような形状の境界データが得られているとします．
+これを以下のようにして分割すると，下の図のような境界が得られます．
+```javacrtipt
+cdt(boundary, holeBounday);
+```
 ![rectangle with hole](img/gear.png)
 
+領域内部をより詳細に分割する場合は，以下のように`option`を与えることで自動的に領域内部に節点を配置して分割します．
+```javascript
+var option = {triSize: 'auto'}
+cdt(boundary, holeBounday, option);
+```
 ![rectangle with hole](img/gear-inner.png)
+`option`のプロパティ`triSize`に数値を設定すると，大まかな三角形の辺のサイズを指定することができます．`auto`に設定すると入力した境界の辺の長さを平均した値に基づいて自動的に`triSize`を内部で生成します．
 
-
-## License
-* MIT
-    * see LICENSE   345r
 
 
 ## Author

@@ -45,7 +45,7 @@ function cdt(boundaryPoints, holeBoundaryPoints, option) {
 	// 三角形オブジェクトは連結リストで格納される
 	// headは連結リストの先頭を表す
 	cdt.addSuperTriangleToPoints(points);
-	var head = new DelaunayTriangle(points, [points.length - 3, points.length - 2, points.length - 1]);
+	var head = new cdt.DelaunayTriangle(points, [points.length - 3, points.length - 2, points.length - 1]);
 
 
 	// STEP2: 点の逐次追加
@@ -56,7 +56,7 @@ function cdt(boundaryPoints, holeBoundaryPoints, option) {
 	// 次の探査開始三角形は前ループの探査結果とする
 	var resultTri = head;
 	for(var i = 0; i < points.length - 3; ++i) {
-		resultTri = DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
+		resultTri = cdt.DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
 		resultTri.addPoint(i, points, cst);
 	}
 
@@ -428,7 +428,7 @@ cdt.innerTriangulation = function (points, innerVtx) {
 	// むしろ3点でドロネー分割すると三角形が
 	// 消滅することがある
 	if(innerVtx.length == 3) {
-		return new DelaunayTriangle(points, [innerVtx[0], innerVtx[1], innerVtx[2]]);
+		return new cdt.DelaunayTriangle(points, [innerVtx[0], innerVtx[1], innerVtx[2]]);
 	}
 
 	// 親の頂点群から三角形分割する頂点を抜き出す
@@ -452,11 +452,11 @@ cdt.innerTriangulation = function (points, innerVtx) {
 	// STEP1: スーパートライアングルの作成
 	cdt.addSuperTriangleToPoints(innerPoints);
 	var l = innerPoints.length;
-	var head = new DelaunayTriangle(innerPoints, [l - 3, l - 2, l - 1]);
+	var head = new cdt.DelaunayTriangle(innerPoints, [l - 3, l - 2, l - 1]);
 	// STEP2: 点の逐次追加
 	var resultTri = head;
 	for(var i = 0; i < innerPoints.length - 3; ++i) {
-		resultTri = DelaunayTriangle.lawsonTriangleDetection(innerPoints, resultTri, innerPoints[i]);
+		resultTri = cdt.DelaunayTriangle.lawsonTriangleDetection(innerPoints, resultTri, innerPoints[i]);
 		resultTri.addPoint(i, innerPoints, cst);
 	}
 	// スーパートライアングルの削除
@@ -845,7 +845,7 @@ cdt.addSuperTriangleToPoints = function (points) {
 // ドロネー三角形分割用の三角形クラス
 // 引数 points 頂点の座標 [[x1,y1],[x2,y2],......]
 // 引数 indices 頂点のインデックス
-function DelaunayTriangle(points, indices) {
+cdt.DelaunayTriangle = function(points, indices) {
 	this.adjacent;			// 隣接する三角形の参照，辺12, 辺23，辺31において隣接する三角形を順に格納する
 	this.edgeIDinAdjacent;	// adjacentの各要素と対応．adjacent[i]が隣接する辺ID．辺IDはadjacent側のもの．	
 	this.vertexID;			// 三角形の頂点のpoints配列におけるインデックス
@@ -857,7 +857,7 @@ function DelaunayTriangle(points, indices) {
 
 // 初期化関数
 // コンストラクタとして使う
-DelaunayTriangle.prototype.init = function (points, indices) {
+cdt.DelaunayTriangle.prototype.init = function (points, indices) {
 	this.adjacent = [null, null, null];
 	this.edgeIDinAdjacent = [-1, -1, -1];
 	this.vertexID = cdt.clone(indices);
@@ -878,7 +878,7 @@ DelaunayTriangle.prototype.init = function (points, indices) {
 
 // プロパティをコピーする
 // 参照のプロパティ以外は値コピー
-DelaunayTriangle.prototype.cloneProperties = function () {
+cdt.DelaunayTriangle.prototype.cloneProperties = function () {
 	return {
 		adjacent: this.adjacent,
 		edgeIDinAdjacent: cdt.clone(this.edgeIDinAdjacent),
@@ -896,7 +896,7 @@ DelaunayTriangle.prototype.cloneProperties = function () {
 // 削除される三角形がheadだった場合は、
 // headを次の三角形の参照に変更する
 // 使用例）head=tri.remove(tri) のように呼び出す
-DelaunayTriangle.prototype.remove = function (head) {
+cdt.DelaunayTriangle.prototype.remove = function (head) {
 	if(this.isRemoved) {
 		return null;
 	}
@@ -929,7 +929,7 @@ DelaunayTriangle.prototype.remove = function (head) {
 // 引数 newPointID: 追加点のID, pointsの中の何番目の点に該当するかを指す
 // 引数 points: 点群の座標 [[x1,y1],[x2,y2],.....]
 // 引数 constraint: 閉境界を構成する点のＩＤ[pointID1, pointID2,.... ] 
-DelaunayTriangle.prototype.addPoint = function (newPointID, points, constraint) {
+cdt.DelaunayTriangle.prototype.addPoint = function (newPointID, points, constraint) {
 
 	// STEP1: 
 	// 追加点pを内包する三角形Tを三分割する
@@ -950,7 +950,7 @@ DelaunayTriangle.prototype.addPoint = function (newPointID, points, constraint) 
 			newTri[i] = this;
 			newTri[i].init(points, indices);
 		} else {
-			newTri[i] = new DelaunayTriangle(points, indices);
+			newTri[i] = new cdt.DelaunayTriangle(points, indices);
 		}
 	}
 
@@ -999,13 +999,13 @@ DelaunayTriangle.prototype.addPoint = function (newPointID, points, constraint) 
 	stack.push(newTri[1]);
 	stack.push(newTri[2]);
 	while(stack.length != 0) {
-		DelaunayTriangle.swapping(stack, newPointID, points, constraint);
+		cdt.DelaunayTriangle.swapping(stack, newPointID, points, constraint);
 	}
 
 }
 
 // スワッピングアルゴリズム
-// ※DelaunayTriangleのプロパティとの依存性なし
+// ※cdt.DelaunayTriangleのプロパティとの依存性なし
 // 引数 stack: スワッピングアルゴリズムを適用する三角形の参照を格納したスタック
 //             後ろから取り出してスワップ処理し，スワップが生じた場合、
 //             スワップで生じた2つの三角形を後ろに追加する
@@ -1013,7 +1013,7 @@ DelaunayTriangle.prototype.addPoint = function (newPointID, points, constraint) 
 // 引数 points: 点群の座標 [[x1,y1],[x2,y2],.....]
 // 引数 constraint: 閉境界を構成する点のＩＤ[pointID1, pointID2,.... ] 
 //                  ※省略可能 undefinedで渡されたら拘束なしとみなす
-DelaunayTriangle.swapping = function (stack, newPointID, points, constraint) {
+cdt.DelaunayTriangle.swapping = function (stack, newPointID, points, constraint) {
 
 	var tri = stack.pop();	// 対象三角形の参照
 	var newPtTri;	// newPointのtriにおけるローカルID
@@ -1060,7 +1060,7 @@ DelaunayTriangle.swapping = function (stack, newPointID, points, constraint) {
 	}
 
 	// newPoint が adjTri の外接円に含まれればスワップ
-	var c = new DelaunayTriangle.Circumcircle(
+	var c = new cdt.DelaunayTriangle.Circumcircle(
 				points[adjTri.vertexID[0]],
 				points[adjTri.vertexID[1]],
 				points[adjTri.vertexID[2]]
@@ -1110,7 +1110,7 @@ DelaunayTriangle.swapping = function (stack, newPointID, points, constraint) {
 
 
 // ローソンの探査法
-DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint) {
+cdt.DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint) {
 	// head から順にローソンのアルゴリズムを適用していく
 	var triTmp = head;
 	var edge = 0;
@@ -1144,7 +1144,7 @@ DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint) {
 
 
 // 外接円クラス
-DelaunayTriangle.Circumcircle = function (p1, p2, p3) {
+cdt.DelaunayTriangle.Circumcircle = function (p1, p2, p3) {
 	var a = cdt.norm2(cdt.sub(p2, p3));
 	var b = cdt.norm2(cdt.sub(p3, p1));
 	var c = cdt.norm2(cdt.sub(p1, p2));
