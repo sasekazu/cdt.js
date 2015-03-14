@@ -80,7 +80,6 @@ var result = cdt([polygonPoints0],[polygonPoints1]);
 結果の取り出しは Single boundary の場合と同様です．
 分割結果は以下のようになります．
 
-
 ![rectangle with hole](img/hole.png)
 
 Example - Multiple boundary
@@ -101,6 +100,7 @@ var holeBoundary = [polygonPoints1, polygonPoints2];
 var result = cdt(bounday, holeBoundary);
 ```
 分割結果は大きい長方形の内部に二つの小さい穴が生成されます．
+
 ![rectangle with hole](img/multiple1.png)
 
 `polygonPoints0`と`polygonPoints1`によって外部境界を，`polygonPoints2`によって穴境界を定義したい場合，以下のような配列を作成します．
@@ -109,7 +109,9 @@ var boundary = [polygonPoints0, polygonPoints1];
 var holeBoundary = [polygonPoints2];
 ```
 分割結果は下のようになります．
+
 ![rectangle with hole](img/multiple2.png)
+
 このように外部境界が他の境界の内側にある場合は，その境界上の辺が分割後も保存されるように分割されます．このような分割が求めらえれるFEMのメッシュ分割にも用いることができます．
 
 次に`polygonPoints1`と`polygonPoints2`によって外部境界を作成する場合，
@@ -119,7 +121,9 @@ var boundary = [polygonPoints1, polygonPoints2];
 var holeBoundary = [];
 ```
 分割結果は以下のようになります．
+
 ![rectangle with hole](img/multiple3.png)
+
 外部境界が分離している場合でも，`result.points`, `result.connectivity`にひとまとめに結果が出力されます．
 
 Example - Inner points addition
@@ -130,6 +134,7 @@ FEMのための解析用メッシュに用いるには，領域内部を詳細�
 ```javacrtipt
 cdt(boundary, holeBounday);
 ```
+
 ![rectangle with hole](img/gear.png)
 
 領域内部をより詳細に分割する場合は，以下のように`option`を与えることで自動的に領域内部に節点を配置して分割します．
@@ -137,7 +142,9 @@ cdt(boundary, holeBounday);
 var option = {triSize: 'auto'}
 cdt(boundary, holeBounday, option);
 ```
+
 ![rectangle with hole](img/gear-inner.png)
+
 `option`のプロパティ`triSize`に数値を設定すると，大まかな三角形の辺のサイズを指定することができます．`auto`に設定すると入力した境界の辺の長さを平均した値に基づいて自動的に`triSize`を内部で生成します．
 
 
