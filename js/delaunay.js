@@ -11,10 +11,10 @@
 //    connectivity: 三角形を構成する頂点IDの配列 
 //       (例. [[pointID1, pointID2, pointID3], [pointID4, pointID5, pointID6], ... ])
 //    head: ドロネー三角形クラスの連結リストの先頭への参照
-function mcdt(boundaryPoints, holeBoundaryPoints) {
+function cdt(boundaryPoints, holeBoundaryPoints, option) {
 
 	// STEP0: 入力データの作成
-	var resultInputGen = mcdt.generateInputData(boundaryPoints, holeBoundaryPoints);
+	var resultInputGen = cdt.generateInputData(boundaryPoints, holeBoundaryPoints, option.triSize);
 	// 点の座標を格納する配列
 	var points = resultInputGen.points;
 	// cst: constrainsの略
@@ -33,7 +33,7 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	// これを元にドロネー分割の初期三角形を作成
 	// 三角形オブジェクトは連結リストで格納される
 	// headは連結リストの先頭を表す
-	mcdt.addSuperTriangleToPoints(points);
+	cdt.addSuperTriangleToPoints(points);
 	var head = new DelaunayTriangle(points, [points.length - 3, points.length - 2, points.length - 1]);
 
 
@@ -53,24 +53,24 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	var itrCount = 0;
 	while(1) {
 		if(itrCount > 2*points.length) {
-			console.log("max iteration at mcdt()");
+			console.log("max iteration at cdt()");
 			break;
 		}
 		// 辺と閉境界との交差判定
-		var resultCrossTri = mcdt.getCrossTriConstraint(points, head, cst);
+		var resultCrossTri = cdt.getCrossTriConstraint(points, head, cst);
 		var crossEdge = resultCrossTri.crossEdge;
 		var crossTri = resultCrossTri.crossTri;
 		// 交差三角形頂点の抽出
-		var rmVtx = mcdt.extractVerticesFromTri(crossTri);
-		var resultULV = mcdt.getUpperAndLowerVtx(points, crossEdge, rmVtx);
+		var rmVtx = cdt.extractVerticesFromTri(crossTri);
+		var resultULV = cdt.getUpperAndLowerVtx(points, crossEdge, rmVtx);
 		// 交差三角形の削除
-		var rmTriResult = mcdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
+		var rmTriResult = cdt.removeCrossTriAndExtractOuterEdge(crossTri, head);
 		head = rmTriResult.head;
 		// 新しい三角形の追加
 		if(crossEdge != null) {
-			var upperHead = mcdt.addInnerVetices(points, crossEdge, resultULV.upperVtx, rmTriResult.adjTris, head);
-			var lowerHead = mcdt.addInnerVetices(points, crossEdge, resultULV.lowerVtx, rmTriResult.adjTris, head);
-			mcdt.updateLocalAdjacentsLU(upperHead, lowerHead);
+			var upperHead = cdt.addInnerVetices(points, crossEdge, resultULV.upperVtx, rmTriResult.adjTris, head);
+			var lowerHead = cdt.addInnerVetices(points, crossEdge, resultULV.lowerVtx, rmTriResult.adjTris, head);
+			cdt.updateLocalAdjacentsLU(upperHead, lowerHead);
 		} else {
 			break;
 		}
@@ -78,16 +78,13 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	}
 
 	// STEP4: スーパートライアングルの削除
-	head = mcdt.removeSuperTriangle(head, points);
+	head = cdt.removeSuperTriangle(head, points);
 
 	// STEP5: 境界の内外判定と外部三角形の削除
-	head = mcdt.removeOuterTriangles(head, points, boundaryPoints, holeBoundaryPoints);
+	head = cdt.removeOuterTriangles(head, points, boundaryPoints, holeBoundaryPoints);
 
 	// STEP6: 三角形の品質向上のための平滑化
-	var dataForSmoothing = mcdt.dataForSmoothing(head, points, cst);
-	for(var i = 0; i < 10; ++i) {
-		mcdt.smoothing(points, dataForSmoothing);
-	}
+	cdt.smoothing(head, points, cst, option.numSmoothing);
 
 	// 三角形接続リストの作成
 	var conn = [];
@@ -98,13 +95,28 @@ function mcdt(boundaryPoints, holeBoundaryPoints) {
 	return {
 		points: points,
 		connectivity: conn,
-		head: head
 	};
 }
 
 
 
-mcdt.dataForSmoothing = function (head, points, cst) {
+cdt.smoothing = function (head, points, cst, numSmoothing) {
+	if(numSmoothing <= 0) {
+		return;
+	}
+	var itr;
+	if(numSmoothing == undefined) {
+		itr = 10;
+	} else {
+		itr = numSmoothing;
+	}
+	var dataForSmoothing = cdt.dataForSmoothing(head, points, cst);
+	for(var i = 0; i < itr; ++i) {
+		cdt.laplacianSmoothing(points, dataForSmoothing);
+	}
+}
+
+cdt.dataForSmoothing = function (head, points, cst) {
 	// 点が境界上であるかどうかを判別するフラグ配列の作成
 	var isOnBoundary = new Array(points.length);
 	for(var i = 0; i < isOnBoundary.length; ++i) {
@@ -132,11 +144,11 @@ mcdt.dataForSmoothing = function (head, points, cst) {
 // ラプラシアンスムージングを行う．
 // すなわち，それぞれの内部頂点について
 // 辺で結合している周辺頂点の重心を新たな座標とする
-mcdt.smoothing = function(points, data){
+cdt.laplacianSmoothing = function (points, data) {
 	var isOnBoundary = data.isOnBoundary;
 	var posToTri = data.posToTri;
 	// 平滑化
-	var outputPoints = mcdt.clone(points);
+	var outputPoints = cdt.clone(points);
 	for(var i = 0; i < points.length; ++i) {
 		// 点が境界上であれば何もしない
 		if(isOnBoundary[i]) {
@@ -160,18 +172,18 @@ mcdt.smoothing = function(points, data){
 
 		var tmp = [0,0];
 		for(var j = 0; j < surroundVtx.length; ++j) {
-			tmp = mcdt.add(tmp, points[surroundVtx[j]]);
+			tmp = cdt.add(tmp, points[surroundVtx[j]]);
 		}
-		outputPoints[i] = mcdt.div(tmp, surroundVtx.length);
+		outputPoints[i] = cdt.div(tmp, surroundVtx.length);
 	}
 
 	for(var i = 0; i < points.length; ++i) {
-		points[i] = mcdt.clone(outputPoints[i]);
+		points[i] = cdt.clone(outputPoints[i]);
 	}
 }
 
 
-mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints, triSize) {
+cdt.generateInputData = function (boundaryPoints, holeBoundaryPoints, triSize) {
 
 	// 1. points の作成
 	// 入力された点の座標値はすべて一様に
@@ -189,13 +201,13 @@ mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints, triSize) 
 	var cntPt = 0;
 	for(var i = 0; i < boundaryPoints.length; ++i) {
 		for(var j = 0; j < boundaryPoints[i].length; ++j) {
-			points[cntPt] = mcdt.clone(boundaryPoints[i][j]);
+			points[cntPt] = cdt.clone(boundaryPoints[i][j]);
 			++cntPt;
 		}
 	}
 	for(var i = 0; i < holeBoundaryPoints.length; ++i) {
 		for(var j = 0; j < holeBoundaryPoints[i].length; ++j) {
-			points[cntPt] = mcdt.clone(holeBoundaryPoints[i][j]);
+			points[cntPt] = cdt.clone(holeBoundaryPoints[i][j]);
 			++cntPt;
 		}
 	}
@@ -222,23 +234,35 @@ mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints, triSize) 
 		constraint[i+offset].push(constraint[i+offset][0]);
 	}
 
+	// triSizeが指定されていないときは終了
+	if(triSize == undefined || triSize<=0) {
+		return {
+			points: points,
+			constraint: constraint
+		}
+	}
+
 
 	// 3. 境界内に追加する点の追加
-	if(triSize == undefined) {
+
+	// triSize が　auto のとき，
+	// 境界のすべての辺の長さの平均をもとめて
+	// 
+	if(triSize == 'auto') {
 		var averageLength = 0;
 		var entryCount = 0;
 		var edgeVec;
 		for(var i = 0; i < boundaryPoints.length; ++i) {
 			for(var j = 0; j < boundaryPoints[i].length; ++j) {
-				edgeVec = mcdt.sub(boundaryPoints[i][(j+1)%boundaryPoints[i].length], boundaryPoints[i][j]);
-				averageLength += mcdt.norm2(edgeVec);
+				edgeVec = cdt.sub(boundaryPoints[i][(j+1)%boundaryPoints[i].length], boundaryPoints[i][j]);
+				averageLength += cdt.norm2(edgeVec);
 				++entryCount;
 			}
 		}
 		for(var i = 0; i < holeBoundaryPoints.length; ++i) {
 			for(var j = 0; j < holeBoundaryPoints[i].length; ++j) {
-				edgeVec = mcdt.sub(holeBoundaryPoints[i][(j+1)%holeBoundaryPoints[i].length], holeBoundaryPoints[i][j]);
-				averageLength += mcdt.norm2(edgeVec);
+				edgeVec = cdt.sub(holeBoundaryPoints[i][(j+1)%holeBoundaryPoints[i].length], holeBoundaryPoints[i][j]);
+				averageLength += cdt.norm2(edgeVec);
 				++entryCount;
 			}
 		}
@@ -270,7 +294,7 @@ mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints, triSize) 
 	for(var i = 0; i < xdiv + 1; ++i) {
 		for(var j = 0; j < ydiv + 1; ++j) {
 			newPt = [xmin+triSize*i, ymin+triSize*j];
-			if(mcdt.isPointInsideOfBoundaries(newPt, boundaryPoints, holeBoundaryPoints)) {
+			if(cdt.isPointInsideOfBoundaries(newPt, boundaryPoints, holeBoundaryPoints)) {
 				additionalPoints.push(newPt);
 			}
 		}
@@ -286,7 +310,7 @@ mcdt.generateInputData = function (boundaryPoints, holeBoundaryPoints, triSize) 
 
 
 
-mcdt.removeCrossTriAndExtractOuterEdge = function (crossTri, head) {
+cdt.removeCrossTriAndExtractOuterEdge = function (crossTri, head) {
 	// 交差三角形の隣接三角形として登録されているものをすべて抽出する
 	var adjTriAll = [];
 	for(var i = 0; i < crossTri.length; ++i) {
@@ -312,19 +336,19 @@ mcdt.removeCrossTriAndExtractOuterEdge = function (crossTri, head) {
 }
 
 
-mcdt.addInnerVetices = function (points, crossEdge, localVtx, adjTris, head) {
+cdt.addInnerVetices = function (points, crossEdge, localVtx, adjTris, head) {
 	// localVtxを辺中点にたいして反時計回りになるように並べ替え
-	var midpoint = mcdt.mul(0.5, mcdt.add(points[crossEdge[0]], points[crossEdge[1]]));
+	var midpoint = cdt.mul(0.5, cdt.add(points[crossEdge[0]], points[crossEdge[1]]));
 	var ccw = function (val1, val2) {
 		th1 = Math.atan2(points[val1][1] - midpoint[1], points[val1][0] - midpoint[0]);
 		th2 = Math.atan2(points[val2][1] - midpoint[1], points[val2][0] - midpoint[0]);
 		return th1 - th2;
 	}
 	localVtx.sort(ccw);
-	var localHead = mcdt.innerTriangulation(points, localVtx);
+	var localHead = cdt.innerTriangulation(points, localVtx);
 	if(localHead != null) {
-		mcdt.updateLocalAdjacents(localHead, adjTris);
-		var tail = mcdt.getTail(head);
+		cdt.updateLocalAdjacents(localHead, adjTris);
+		var tail = cdt.getTail(head);
 		tail.next = localHead;
 		localHead.prev = tail;
 	}
@@ -333,7 +357,7 @@ mcdt.addInnerVetices = function (points, crossEdge, localVtx, adjTris, head) {
 
 
 // upper三角形群とlower三角形群の隣接関係を更新する
-mcdt.updateLocalAdjacentsLU = function (upperHead, lowerHead) {
+cdt.updateLocalAdjacentsLU = function (upperHead, lowerHead) {
 	if(upperHead == null || lowerHead == null) {
 		console.log("upperHead is null. upperHead:" + upperHead + " lowerHead:" + lowerHead);
 		return;
@@ -342,14 +366,14 @@ mcdt.updateLocalAdjacentsLU = function (upperHead, lowerHead) {
 	for(var tri = lowerHead; tri != null; tri = tri.next) {
 		adjTris.push(tri);
 	}
-	mcdt.updateLocalAdjacents(upperHead, adjTris);
+	cdt.updateLocalAdjacents(upperHead, adjTris);
 }
 
 
 
 // 新しく追加される三角形の境界辺において
 // 親三角形群との隣接関係を更新する
-mcdt.updateLocalAdjacents = function (localHead, adjTris) {
+cdt.updateLocalAdjacents = function (localHead, adjTris) {
 	// すべてのtriのadjacentを調べて，nullならば
 	// 周辺三角形adjTrisから辺の頂点IDが一致する
 	// ものを探して それぞれの adjacent と edgeIDinAdj を
@@ -374,7 +398,7 @@ mcdt.updateLocalAdjacents = function (localHead, adjTris) {
 }
 
 
-mcdt.getTail = function (head) {
+cdt.getTail = function (head) {
 	var tail = head;
 	while(1) {
 		if(tail.next == null) {
@@ -386,7 +410,7 @@ mcdt.getTail = function (head) {
 	return tail;
 }
 
-mcdt.innerTriangulation = function (points, innerVtx) {
+cdt.innerTriangulation = function (points, innerVtx) {
 
 	// 頂点数が3の時は分割するまでもないので
 	// そのまま3点を結合した三角形を返す
@@ -399,7 +423,7 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 	// 親の頂点群から三角形分割する頂点を抜き出す
 	var innerPoints = new Array(innerVtx.length);
 	for(var i = 0; i < innerPoints.length; ++i) {
-		innerPoints[i] = mcdt.clone(points[innerVtx[i]]);
+		innerPoints[i] = cdt.clone(points[innerVtx[i]]);
 	}
 
 	// innerVtxが輪郭の辺に沿ってCCWで格納されている
@@ -410,12 +434,12 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 		constraint[i] = i;
 	}
 	// 閉境界 cst[0]=cst[length-1] となるようにする
-	var cst = mcdt.clone(constraint);
+	var cst = cdt.clone(constraint);
 	if(cst[0] != cst[cst.length - 1]) {
 		cst.push(cst[0]);
 	}
 	// STEP1: スーパートライアングルの作成
-	mcdt.addSuperTriangleToPoints(innerPoints);
+	cdt.addSuperTriangleToPoints(innerPoints);
 	var l = innerPoints.length;
 	var head = new DelaunayTriangle(innerPoints, [l - 3, l - 2, l - 1]);
 	// STEP2: 点の逐次追加
@@ -425,9 +449,9 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 		resultTri.addPoint(i, innerPoints, cst);
 	}
 	// スーパートライアングルの削除
-	head = mcdt.removeSuperTriangle(head, innerPoints);
+	head = cdt.removeSuperTriangle(head, innerPoints);
 	// 外部三角形の削除
-	head = mcdt.removeOuterTrianglesForInnerTriangulation(head, cst);
+	head = cdt.removeOuterTrianglesForInnerTriangulation(head, cst);
 
 	// 親ドロネーの頂点インデックスに書き換える
 	for(var tri = head; tri != null; tri = tri.next) {
@@ -440,7 +464,7 @@ mcdt.innerTriangulation = function (points, innerVtx) {
 
 // 境界の内外判定と外部三角形の削除
 // 谷口，FEMのための要素自動分割，P35の内外判定法を用いる
-mcdt.removeOuterTrianglesForInnerTriangulation = function (head, cst) {
+cdt.removeOuterTrianglesForInnerTriangulation = function (head, cst) {
 	var cstVtxID = new Array(3);
 	var signs = new Array(3);
 	var trinext;
@@ -471,13 +495,13 @@ mcdt.removeOuterTrianglesForInnerTriangulation = function (head, cst) {
 // 三角形の重心と境界の内外判定を行い，
 // 境界の外部であれば三角形を削除する
 // 三角形の隣接関係を用いれば高速化できるかもしれない
-mcdt.removeOuterTriangles = function (head, points, boundaryPoints, holeBoundaryPoints) {
+cdt.removeOuterTriangles = function (head, points, boundaryPoints, holeBoundaryPoints) {
 	var trinext;
 	for(var tri = head; tri != null; tri = trinext) {
 		trinext = tri.next;
-		var triCenter = mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
-		triCenter = mcdt.div(mcdt.add(triCenter, points[tri.vertexID[2]]), 3);
-		if(!mcdt.isPointInsideOfBoundaries(triCenter, boundaryPoints, holeBoundaryPoints)) {
+		var triCenter = cdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
+		triCenter = cdt.div(cdt.add(triCenter, points[tri.vertexID[2]]), 3);
+		if(!cdt.isPointInsideOfBoundaries(triCenter, boundaryPoints, holeBoundaryPoints)) {
 			head = tri.remove(head);
 		}
 	}
@@ -487,11 +511,11 @@ mcdt.removeOuterTriangles = function (head, points, boundaryPoints, holeBoundary
 
 // 点が境界内部で穴の外に存在するかどうかを判別する
 // boundaryPoints, holeBoundaryPoints には境界上の点の座標を格納する
-mcdt.isPointInsideOfBoundaries = function(p, boundaryPoints, holeBoundaryPoints){
+cdt.isPointInsideOfBoundaries = function(p, boundaryPoints, holeBoundaryPoints){
 	var isInHole = false;
 	// 穴境界に含まれれば削除
 	for(var i = 0; i < holeBoundaryPoints.length; ++i) {
-		if(mcdt.isPointInsideOfBoundary(p, holeBoundaryPoints[i])) {
+		if(cdt.isPointInsideOfBoundary(p, holeBoundaryPoints[i])) {
 			isInHole = true;
 			return false;
 		}
@@ -499,7 +523,7 @@ mcdt.isPointInsideOfBoundaries = function(p, boundaryPoints, holeBoundaryPoints)
 	// 通常境界のいずれにも含まれなければ削除
 	if(!isInHole) {
 		for(var i = 0; i < boundaryPoints.length; ++i) {
-			if(mcdt.isPointInsideOfBoundary(p, boundaryPoints[i])) {
+			if(cdt.isPointInsideOfBoundary(p, boundaryPoints[i])) {
 				return true;
 			}
 		}
@@ -508,14 +532,14 @@ mcdt.isPointInsideOfBoundaries = function(p, boundaryPoints, holeBoundaryPoints)
 }
 
 // boundary には境界上の点の座標を格納する
-mcdt.isPointInsideOfBoundary = function(p, boundary){
+cdt.isPointInsideOfBoundary = function(p, boundary){
 	if(p.length == 0) return flase;
 	// +x方向へレイを出す
 	var countxp = 0;
 	var ZERO = 1e-10;
 	var edge;
 	for(var j = 0; j < boundary.length; j++) {
-		edge = new mcdt.LineSeg(boundary[j], boundary[(j+1)%boundary.length]);
+		edge = new cdt.LineSeg(boundary[j], boundary[(j+1)%boundary.length]);
 		// pを通りx軸に平行な直線に交わるかどうか
 		var dys = edge.start[1] - p[1];
 		var dye = edge.end[1] - p[1];
@@ -562,14 +586,14 @@ mcdt.isPointInsideOfBoundary = function(p, boundary){
 // cstで定義される辺ベクトルで
 // 頂点群vtxを分割し，upperVtx, lowerVtxに分ける
 // 辺ベクトル上の頂点は両方に含まれる
-mcdt.getUpperAndLowerVtx = function (points, crossEdge, vtx) {
+cdt.getUpperAndLowerVtx = function (points, crossEdge, vtx) {
 	var upperVtx = [];
 	var lowerVtx = [];
 	if(crossEdge != null) {
-		var cstVec = mcdt.sub(points[crossEdge[0]], points[crossEdge[1]]);
+		var cstVec = cdt.sub(points[crossEdge[0]], points[crossEdge[1]]);
 		var vtxVec;
 		for(var i = 0; i < vtx.length; ++i) {
-			vtxVec = mcdt.sub(points[vtx[i]], points[crossEdge[1]]);
+			vtxVec = cdt.sub(points[vtx[i]], points[crossEdge[1]]);
 			if(cstVec[0] * vtxVec[1] - cstVec[1] * vtxVec[0] > 0) {
 				upperVtx.push(vtx[i]);
 			} else if(cstVec[0] * vtxVec[1] - cstVec[1] * vtxVec[0] < 0) {
@@ -587,15 +611,15 @@ mcdt.getUpperAndLowerVtx = function (points, crossEdge, vtx) {
 
 
 // DelauneyTriangleの辺と閉境界との交差判定
-mcdt.getCrossTriConstraint = function (points, head, cst) {
+cdt.getCrossTriConstraint = function (points, head, cst) {
 	// 点から三角形へアクセスするためのデータ作成
-	var pointToTri = mcdt.makePointToTri(points, head);
+	var pointToTri = cdt.makePointToTri(points, head);
 	var crossEdge = null;
 	var crossTri = [];
 	var isCrossFound = false;
 	for(var i = 0; i < cst.length; ++i) {
 		for(var j = 0; j < cst[i].length - 1; ++j) {
-			crossTri = mcdt.isEdgeCross(points, pointToTri, cst[i], j);
+			crossTri = cdt.isEdgeCross(points, pointToTri, cst[i], j);
 			if(crossTri.length > 0) {
 				crossEdge = [cst[i][j + 1], cst[i][j]];
 				isCrossFound = true;
@@ -612,7 +636,7 @@ mcdt.getCrossTriConstraint = function (points, head, cst) {
 
 // DelauneyTriangleオブジェクトの配列から
 // 重複のない頂点IDを抽出する
-mcdt.extractVerticesFromTri = function (triAry) {
+cdt.extractVerticesFromTri = function (triAry) {
 	var vtx = [];
 	for(var i = 0; i < triAry.length; ++i) {
 		for(var j = 0; j < 3; ++j) {
@@ -633,7 +657,7 @@ mcdt.extractVerticesFromTri = function (triAry) {
 	return vtx;
 }
 
-mcdt.removeSuperTriangle = function (head, points) {
+cdt.removeSuperTriangle = function (head, points) {
 	var isSuperVtx;
 	var tri = head;
 	while(1) {
@@ -668,14 +692,14 @@ mcdt.removeSuperTriangle = function (head, points) {
 
 // i番目の拘束辺の交差判定
 // 注意, 引数のcstは一つの境界 [境界頂点1のID, 境界頂点2のID, ...]
-mcdt.isEdgeCross = function (points, pointToTri, cst, i) {
+cdt.isEdgeCross = function (points, pointToTri, cst, i) {
 	var edgePos = [points[cst[i]], points[cst[i + 1]]];	// 辺の始点・終点の座標 [[始点],[終点]]
 	// 拘束辺の始点を含む三角形についてのループ
 	var tri;
 	var adjEdge = null;
 	for(var j = 0; j < pointToTri[cst[i]].length; ++j) {
 		tri = pointToTri[cst[i]][j];
-		adjEdge = mcdt.isTriAndEdgeCross(points, tri, edgePos);
+		adjEdge = cdt.isTriAndEdgeCross(points, tri, edgePos);
 		if(adjEdge != null) {
 			break;
 		}
@@ -697,7 +721,7 @@ mcdt.isEdgeCross = function (points, pointToTri, cst, i) {
 		if(tri.vertexID[(edgeIDinAdj + 2) % 3] == cst[i + 1]) {
 			break;
 		}
-		adjEdge = mcdt.isTriAndEdgeCross(points, tri, edgePos, edgeIDinAdj);
+		adjEdge = cdt.isTriAndEdgeCross(points, tri, edgePos, edgeIDinAdj);
 	}
 	return crossTri;
 }
@@ -706,13 +730,13 @@ mcdt.isEdgeCross = function (points, pointToTri, cst, i) {
 // 三角形と辺の交差判定
 // 交差している場合, triのうちの交差している辺番号を返す
 // そうでない場合，nullを返す
-mcdt.isTriAndEdgeCross = function (points, tri, edgePos, except) {
+cdt.isTriAndEdgeCross = function (points, tri, edgePos, except) {
 	var triPos = [[0, 0], [0, 0], [0, 0]];	// 三角形の頂点座標　[[頂点1],[頂点2],[頂点3]]
 	for(var k = 0; k < 3; ++k) {
 		triPos[k] = points[tri.vertexID[k]];
 	}
 	for(var k = 0; k < 3; ++k) {
-		if(mcdt.isIntersect(edgePos, [triPos[k], triPos[(k + 1) % 3]])) {
+		if(cdt.isIntersect(edgePos, [triPos[k], triPos[(k + 1) % 3]])) {
 			if(k != except) {
 				return k;
 			}
@@ -722,7 +746,7 @@ mcdt.isTriAndEdgeCross = function (points, tri, edgePos, except) {
 }
 
 // pointToTriの作成
-mcdt.makePointToTri = function (points, head) {
+cdt.makePointToTri = function (points, head) {
 	var pointToTri = new Array(points.length);
 	for(var i = 0; i < pointToTri.length; ++i) {
 		pointToTri[i] = [];
@@ -738,10 +762,10 @@ mcdt.makePointToTri = function (points, head) {
 
 // 線分の衝突
 // 参考: http://marupeke296.com/COL_2D_No10_SegmentAndSegment.html
-mcdt.isIntersect = function (s1, s2) {
-	var v = mcdt.sub(s2[0], s1[0]);
-	var v1 = mcdt.sub(s1[1], s1[0]);
-	var v2 = mcdt.sub(s2[1], s2[0]);
+cdt.isIntersect = function (s1, s2) {
+	var v = cdt.sub(s2[0], s1[0]);
+	var v1 = cdt.sub(s1[1], s1[0]);
+	var v2 = cdt.sub(s2[1], s2[0]);
 	var crs_v1_v2 = v1[0] * v2[1] - v1[1] * v2[0];
 	if(crs_v1_v2 == 0.0) {
 		return false	// 平行状態
@@ -759,7 +783,7 @@ mcdt.isIntersect = function (s1, s2) {
 	}
 }
 
-mcdt.addSuperTriangleToPoints = function (points) {
+cdt.addSuperTriangleToPoints = function (points) {
 	if(points.length == 0) {
 		return [[0, 0], [0, 0], [0, 0]];
 	}
@@ -823,13 +847,13 @@ function DelaunayTriangle(points, indices) {
 DelaunayTriangle.prototype.init = function (points, indices) {
 	this.adjacent = [null, null, null];
 	this.edgeIDinAdjacent = [-1, -1, -1];
-	this.vertexID = mcdt.clone(indices);
+	this.vertexID = cdt.clone(indices);
 	this.prev = null;
 	this.next = null;
 	// 頂点が反時計回りになるように並べ替える
 	// v1 cross v2 のz座標が負であれば時計回り
-	var v1 = mcdt.sub(points[this.vertexID[1]], points[this.vertexID[0]]);
-	var v2 = mcdt.sub(points[this.vertexID[2]], points[this.vertexID[0]]);
+	var v1 = cdt.sub(points[this.vertexID[1]], points[this.vertexID[0]]);
+	var v2 = cdt.sub(points[this.vertexID[2]], points[this.vertexID[0]]);
 	var tmp;
 	if(v1[0] * v2[1] - v1[1] * v2[0] < 0) {
 		tmp = this.vertexID[1];
@@ -844,8 +868,8 @@ DelaunayTriangle.prototype.init = function (points, indices) {
 DelaunayTriangle.prototype.cloneProperties = function () {
 	return {
 		adjacent: this.adjacent,
-		edgeIDinAdjacent: mcdt.clone(this.edgeIDinAdjacent),
-		vertexID: mcdt.clone(this.vertexID),
+		edgeIDinAdjacent: cdt.clone(this.edgeIDinAdjacent),
+		vertexID: cdt.clone(this.vertexID),
 		prev: this.prev,
 		next: this.next
 	};
@@ -1028,14 +1052,14 @@ DelaunayTriangle.swapping = function (stack, newPointID, points, constraint) {
 				points[adjTri.vertexID[1]],
 				points[adjTri.vertexID[2]]
 			);
-	var swapFlag = (mcdt.norm2(mcdt.sub(c.p, points[newPointID])) < c.rad);
+	var swapFlag = (cdt.norm2(cdt.sub(c.p, points[newPointID])) < c.rad);
 
 	// FEMのための要素自動分割」では、以下の3行のようにして
 	// 対辺がvFarより短いときスワップを行っているが、
 	// ドロネー三角分割にならないことがあるため外接円を使って判定する
-	//vOpp=mcdt.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
-	//vFar=mcdt.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
-	//var swapFlag=(mcdt.norm2(vOpp)>mcdt.norm2(vFar));
+	//vOpp=cdt.sub(points[tri.vertexID[(newPtTri+2)%3]], points[tri.vertexID[(newPtTri+1)%3]]);
+	//vFar=cdt.sub(points[adjTri.vertexID[farPtAdj]], points[tri.vertexID[newPtTri]]);
+	//var swapFlag=(cdt.norm2(vOpp)>cdt.norm2(vFar));
 
 	if(swapFlag) {
 		// vertexID の更新
@@ -1083,8 +1107,8 @@ DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint) {
 	while(1) {
 		isPointInner = true;
 		for(var i = 0; i < 3; ++i) {
-			vPt = mcdt.sub(newPoint, points[triTmp.vertexID[edge]]);
-			vEdge = mcdt.sub(points[triTmp.vertexID[(edge + 1) % 3]], points[triTmp.vertexID[edge]]);
+			vPt = cdt.sub(newPoint, points[triTmp.vertexID[edge]]);
+			vEdge = cdt.sub(points[triTmp.vertexID[(edge + 1) % 3]], points[triTmp.vertexID[edge]]);
 			// newPointが辺ベクトルの右側にあれば右隣りの三角形に移る
 			if(vPt[0] * vEdge[1] - vPt[1] * vEdge[0] > 0) {
 				edgeTmp = triTmp.edgeIDinAdjacent[edge];
@@ -1108,17 +1132,17 @@ DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint) {
 
 // 外接円クラス
 DelaunayTriangle.Circumcircle = function (p1, p2, p3) {
-	var a = mcdt.norm2(mcdt.sub(p2, p3));
-	var b = mcdt.norm2(mcdt.sub(p3, p1));
-	var c = mcdt.norm2(mcdt.sub(p1, p2));
+	var a = cdt.norm2(cdt.sub(p2, p3));
+	var b = cdt.norm2(cdt.sub(p3, p1));
+	var c = cdt.norm2(cdt.sub(p1, p2));
 	var s = (a + b + c) * 0.5;
 	this.S = Math.sqrt(s * (s - a) * (s - b) * (s - c));	// area
 	this.rad = (a * b * c) / (4.0 * this.S);
 	// Calc center
-	var tmpv1 = mcdt.mul(a * a * (b * b + c * c - a * a), p1);
-	var tmpv2 = mcdt.mul(b * b * (c * c + a * a - b * b), p2);
-	var tmpv3 = mcdt.mul(c * c * (a * a + b * b - c * c), p3);
-	this.p = mcdt.div(mcdt.add(mcdt.add(tmpv1, tmpv2), tmpv3), 16 * this.S * this.S);
+	var tmpv1 = cdt.mul(a * a * (b * b + c * c - a * a), p1);
+	var tmpv2 = cdt.mul(b * b * (c * c + a * a - b * b), p2);
+	var tmpv3 = cdt.mul(c * c * (a * a + b * b - c * c), p3);
+	this.p = cdt.div(cdt.add(cdt.add(tmpv1, tmpv2), tmpv3), 16 * this.S * this.S);
 }
 
 
@@ -1126,7 +1150,7 @@ DelaunayTriangle.Circumcircle = function (p1, p2, p3) {
 // utilities for array processing
 //
 
-mcdt.clone = function (src) {
+cdt.clone = function (src) {
 	if(src.length == 0) {
 		return [];
 	}
@@ -1147,7 +1171,7 @@ mcdt.clone = function (src) {
 		return tmp;
 	}
 	if(typeof (src[0][0][0] == 'number')) {
-		alert('この処理は未検証 at mcdt.clone');
+		alert('この処理は未検証 at cdt.clone');
 		for(var i = 0; i < src.length; ++i) {
 			tmp[i] = new Array(src[i].length);
 			for(var j = 0; j < src[i].length; ++j) {
@@ -1160,7 +1184,7 @@ mcdt.clone = function (src) {
 	}
 }
 
-mcdt.norm2 = function (src) {
+cdt.norm2 = function (src) {
 	var tmp = 0;
 	for(var i = 0; i < src.length; ++i) {
 		tmp += src[i] * src[i];
@@ -1169,9 +1193,9 @@ mcdt.norm2 = function (src) {
 }
 
 // return x-y
-mcdt.sub = function (x, y) {
+cdt.sub = function (x, y) {
 	if(x.length != y.length) {
-		console.log('length of input arrays are not equal. in mcdt.sub');
+		console.log('length of input arrays are not equal. in cdt.sub');
 		return null;
 	}
 	var l = x.length;
@@ -1184,9 +1208,9 @@ mcdt.sub = function (x, y) {
 
 
 // return x+y
-mcdt.add = function (x, y) {
+cdt.add = function (x, y) {
 	if(x.length != y.length) {
-		console.log('ERROR: length of input arrays are not equal. in mcdt.sub');
+		console.log('ERROR: length of input arrays are not equal. in cdt.sub');
 		return null;
 	}
 	var l = x.length;
@@ -1199,7 +1223,7 @@ mcdt.add = function (x, y) {
 
 
 // return x*y
-mcdt.mul = function (x, y) {
+cdt.mul = function (x, y) {
 	var a;
 	var v;
 	if(typeof (x) == 'number') {
@@ -1222,7 +1246,7 @@ mcdt.mul = function (x, y) {
 
 
 // return x/y
-mcdt.div = function (x, y) {
+cdt.div = function (x, y) {
 	var a;
 	var v;
 	if(typeof (x) == 'number') {
@@ -1247,18 +1271,18 @@ mcdt.div = function (x, y) {
 
 
 // 線分クラス
-mcdt.LineSeg = function (st, ed) {
-	this.start = mcdt.clone(st); // start point [x,y]
-	this.end = mcdt.clone(ed); // end point [x,y]
+cdt.LineSeg = function (st, ed) {
+	this.start = cdt.clone(st); // start point [x,y]
+	this.end = cdt.clone(ed); // end point [x,y]
 	this.a = this.end[1] - this.start[1];
 	this.b = this.start[0] - this.end[0];
 	this.c = (this.end[0] - this.start[0]) * this.start[1]
 	- (this.end[1] - this.start[1]) * this.start[0];
-	this.vec = mcdt.sub(this.end, this.start);
-	this.len = mcdt.norm2(this.vec);
+	this.vec = cdt.sub(this.end, this.start);
+	this.len = cdt.norm2(this.vec);
 }
 // 線分との交差判定
-mcdt.LineSeg.prototype.intersect = function (ls) {
+cdt.LineSeg.prototype.intersect = function (ls) {
 	var intersection = false;
 	var t1 = ((this.start[0] - this.end[0]) * (ls.start[1] - this.start[1]) + (this.start[1] - this.end[1]) * (this.start[0] - ls.start[0])) *
 	((this.start[0] - this.end[0]) * (ls.end[1] - this.start[1]) + (this.start[1] - this.end[1]) * (this.start[0] - ls.end[0]));
@@ -1273,17 +1297,17 @@ mcdt.LineSeg.prototype.intersect = function (ls) {
 	return intersection;
 }
 // 線分同士の交点の計算
-mcdt.LineSeg.prototype.crossPos = function (ls) {
+cdt.LineSeg.prototype.crossPos = function (ls) {
 	var cross = new Array(2);
 	cross[0] = (this.b * ls.c - ls.b * this.c) / (this.a * ls.b - ls.a * this.b);
 	cross[1] = (ls.a * this.c - this.a * ls.c) / (this.a * ls.b - ls.a * this.b);
 	return cross;
 }
 // x軸に平行な直線(y=*)との交点のx座標
-mcdt.LineSeg.prototype.crossXpos = function (y) {
+cdt.LineSeg.prototype.crossXpos = function (y) {
 	return (-this.b * y - this.c) / this.a;
 }
 // y軸に平行な直線(x=*)との交点のx座標
-mcdt.LineSeg.prototype.crossYpos = function (x) {
+cdt.LineSeg.prototype.crossYpos = function (x) {
 	return (-this.a * x - this.c) / this.b;
 }

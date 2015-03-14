@@ -95,7 +95,7 @@ function initEvents(canvas) {
 			var clickPos = [canvasX, canvasY];
 			var dist;
 			for(var i = 0; i < inputPoints.length; ++i) {
-				dist = mcdt.norm2(mcdt.sub(inputPoints[i], clickPos));
+				dist = util.norm2(util.sub(inputPoints[i], clickPos));
 				if(dist < 10) {
 					selectPoint = i;
 					break;
@@ -152,7 +152,8 @@ function initEvents(canvas) {
 
 		// 三角形分割
 		if(true) {
-			var result = mcdt(boundaryPoints, holeBoundaryPoints);
+			var option = { triSize: 20 }
+			var result = cdt(boundaryPoints, holeBoundaryPoints, option);
 			drawResult(result, context, holeBoundary, inputPoints);
 		}
 
@@ -166,17 +167,13 @@ function initEvents(canvas) {
 			drawPoints(canvas, inputPoints, 3);
 			return;
 		}
-		head = result.head;
 		points = result.points;
-		crossTri = result.crossTris;
 		conn = result.connectivity;
 
 
 		// 三角形の描画
 		context.strokeStyle = 'black';
 		context.fillStyle = 'lightyellow';
-		drawTrianglesFromHead(canvas, points, head);
-		/*
 		for(var i = 0; i < conn.length; ++i) {
 			context.beginPath();
 			context.moveTo(points[conn[i][0]][0], points[conn[i][0]][1]);
@@ -184,14 +181,8 @@ function initEvents(canvas) {
 			context.lineTo(points[conn[i][2]][0], points[conn[i][2]][1]);
 			context.lineTo(points[conn[i][0]][0], points[conn[i][0]][1]);
 			context.stroke();
+			context.fill();
 		}
-		*/
-
-		// 外接円の描画
-		if($('#gaisetuenCheckBox').is(':checked')) {
-			drawCircumcirclesFromHead(canvas, points, head);
-		}
-
 
 		// 境界の描画
 		/*
@@ -226,11 +217,7 @@ function initEvents(canvas) {
 		}
 		context.lineWidth = 1;
 		*/
-
 		
-		// 隣接関係の描画
-		//drawAdjacents(canvas, points, head);
-
 		// 点の描画
 		context.fillStyle = 'black';
 		drawPoints(canvas, points, 2);
@@ -321,8 +308,8 @@ function drawAdjacents(canvas, points, head) {
 		}
 		context.strokeStyle = 'orange';
 		//context.strokeStyle = 'blue';
-		v1 = mcdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
-		v1 = mcdt.div(mcdt.add(v1, points[tri.vertexID[2]]), 3);
+		v1 = util.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
+		v1 = util.div(util.add(v1, points[tri.vertexID[2]]), 3);
 		for(var j = 0; j < 3; ++j) {
 			if(tri.adjacent[j] == null) {
 				continue;
@@ -332,16 +319,16 @@ function drawAdjacents(canvas, points, head) {
 			}
 
 			// ボロノイ図的な図の描画のため
-			v2 = mcdt.add(points[tri.adjacent[j].vertexID[0]], points[tri.adjacent[j].vertexID[1]]);
-			v2 = mcdt.div(mcdt.add(v2, points[tri.adjacent[j].vertexID[2]]), 3);
-			v12 = mcdt.sub(v2, v1);
-			v12 = mcdt.mul(0.48, v12);
-			edgeMid = mcdt.add(v1, v12);
+			v2 = util.add(points[tri.adjacent[j].vertexID[0]], points[tri.adjacent[j].vertexID[1]]);
+			v2 = util.div(util.add(v2, points[tri.adjacent[j].vertexID[2]]), 3);
+			v12 = util.sub(v2, v1);
+			v12 = util.mul(0.48, v12);
+			edgeMid = util.add(v1, v12);
 
 			// 隣接三角形の辺の中点
 			/*
-			edgeMid = mcdt.add(points[tri.adjacent[j].vertexID[tri.edgeIDinAdjacent[j]]], points[tri.adjacent[j].vertexID[(tri.edgeIDinAdjacent[j] + 1) % 3]]);
-			edgeMid = mcdt.mul(edgeMid, 0.5);
+			edgeMid = util.add(points[tri.adjacent[j].vertexID[tri.edgeIDinAdjacent[j]]], points[tri.adjacent[j].vertexID[(tri.edgeIDinAdjacent[j] + 1) % 3]]);
+			edgeMid = util.mul(edgeMid, 0.5);
 			*/
 
 			context.beginPath();
@@ -350,4 +337,129 @@ function drawAdjacents(canvas, points, head) {
 			context.stroke();
 		}
 	}
+}
+
+
+
+// 配列処理
+
+function util() { };
+
+
+util.clone = function (src) {
+	if(src.length == 0) {
+		return [];
+	}
+	var tmp = new Array(src.length);
+	if(typeof (src[0]) == 'number') {
+		for(var i = 0; i < src.length; ++i) {
+			tmp[i] = src[i];
+		}
+		return tmp;
+	}
+	if(typeof (src[0][0] == 'number')) {
+		for(var i = 0; i < src.length; ++i) {
+			tmp[i] = new Array(src[i].length);
+			for(var j = 0; j < src[i].length; ++j) {
+				tmp[i] = src[i];
+			}
+		}
+		return tmp;
+	}
+	if(typeof (src[0][0][0] == 'number')) {
+		alert('この処理は未検証 at util.clone');
+		for(var i = 0; i < src.length; ++i) {
+			tmp[i] = new Array(src[i].length);
+			for(var j = 0; j < src[i].length; ++j) {
+				tmp[i][j] = new Array(src[i][j].length);
+				for(var k = 0; k < src[i][j].length; ++k) {
+					tmp[i][j][k] = src[i][j][k];
+				}
+			}
+		}
+	}
+}
+
+util.norm2 = function (src) {
+	var tmp = 0;
+	for(var i = 0; i < src.length; ++i) {
+		tmp += src[i] * src[i];
+	}
+	return Math.sqrt(tmp);
+}
+
+// return x-y
+util.sub = function (x, y) {
+	if(x.length != y.length) {
+		console.log('length of input arrays are not equal. in util.sub');
+		return null;
+	}
+	var l = x.length;
+	var tmp = new Array(l);
+	for(var i = 0; i < l; ++i) {
+		tmp[i] = x[i] - y[i];
+	}
+	return tmp;
+}
+
+
+// return x+y
+util.add = function (x, y) {
+	if(x.length != y.length) {
+		console.log('ERROR: length of input arrays are not equal. in util.sub');
+		return null;
+	}
+	var l = x.length;
+	var tmp = new Array(l);
+	for(var i = 0; i < l; ++i) {
+		tmp[i] = x[i] + y[i];
+	}
+	return tmp;
+}
+
+
+// return x*y
+util.mul = function (x, y) {
+	var a;
+	var v;
+	if(typeof (x) == 'number') {
+		a = x;
+		v = y;
+	} else if(typeof (y) == 'number') {
+		a = y;
+		v = x;
+	} else {
+		console.log('ERROR: input argument do not include scalar value');
+		return null;
+	}
+	var l = v.length;
+	var tmp = new Array(l);
+	for(var i = 0; i < l; ++i) {
+		tmp[i] = a * v[i];
+	}
+	return tmp;
+}
+
+
+// return x/y
+util.div = function (x, y) {
+	var a;
+	var v;
+	if(typeof (x) == 'number') {
+		a = x;
+		v = y;
+	} else if(typeof (y) == 'number') {
+		a = y;
+		v = x;
+	} else {
+		console.log('ERROR: input arguments do not include scalar value');
+		return null;
+	}
+	var l = v.length;
+	var tmp = new Array(l);
+	var inva = 1 / a;
+	for(var i = 0; i < l; ++i) {
+		tmp[i] = v[i] * inva;
+	}
+	return tmp;
 }
