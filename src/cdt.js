@@ -105,7 +105,7 @@ function cdt(boundaryPoints, holeBoundaryPoints, option) {
 
 	return {
 		points: points,
-		connectivity: conn,
+		connectivity: conn
 	};
 }
 
