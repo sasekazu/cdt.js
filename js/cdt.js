@@ -1,6 +1,13 @@
-﻿// JavaScript Document
-/// <reference path="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" />
+﻿/**
+cdt.js
 
+Copyright (c) 2015 Kazuya Sase
+
+This software is released under the MIT License.
+
+http://opensource.org/licenses/mit-license.php
+
+*/
 
 // ドロネー三角形分割関数
 // 引数 boundaryPoints: 閉境界を構成する点の座標 (例. [[x1, y1], [x2, y2], ...] )
@@ -13,7 +20,11 @@
 //    head: ドロネー三角形クラスの連結リストの先頭への参照
 function cdt(boundaryPoints, holeBoundaryPoints, option) {
 
+
 	// STEP0: 入力データの作成
+	if(option == undefined) {
+		option = {triSize:0, numSmoothing:0};
+	}
 	var resultInputGen = cdt.generateInputData(boundaryPoints, holeBoundaryPoints, option.triSize);
 	// 点の座標を格納する配列
 	var points = resultInputGen.points;
@@ -686,6 +697,8 @@ cdt.removeSuperTriangle = function (head, points) {
 			tri = tri.next;
 		}
 	}
+
+	points.splice(points.length-3, 3)
 	return head;
 }
 

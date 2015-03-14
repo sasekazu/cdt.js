@@ -63,7 +63,11 @@ function initEvents(canvas) {
 		inputPoints = waveResult.points;
 		boundaryPoints = [waveResult.points];
 
+
 		holeBoundaryPoints = [];
+		var circleResult = circle(center0);
+		holeBoundaryPoints.push(circleResult.points);
+		return;
 		var circleResult = circle(center_up);
 		holeBoundaryPoints.push(circleResult.points);
 		circleResult = circle(center_bottom);
@@ -152,7 +156,7 @@ function initEvents(canvas) {
 
 		// 三角形分割
 		if(true) {
-			var option = { triSize: 20 }
+			var option = { triSize: 'auto' }
 			var result = cdt(boundaryPoints, holeBoundaryPoints, option);
 			drawResult(result, context, holeBoundary, inputPoints);
 		}
