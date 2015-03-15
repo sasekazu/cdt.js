@@ -1,0 +1,81 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>cdt.js minimum</title>
+	<script type="text/javascript" src="../../dist/cdt-0.1.min.js"></script>
+	<script>
+		window.onload = function () {
+
+			// input data
+			var canvasWidth = 400;
+			var canvasHeight = 300;
+			var center = [canvasWidth * 0.5, canvasHeight * 0.5];
+			var waveResult = waveCircle(center, 0.3 * canvasHeight, 0.1 * 0.3 * canvasHeight, 150, 20);
+			var boundary = [waveResult.points];
+			var circleResult = circle(center, 0.06 * canvasHeight, 20);
+			var holeBoundary = [circleResult.points];
+
+			// triangulate
+			var option = { triSize: 'auto' };
+			var result = cdt(boundary, holeBoundary, option);
+			var points = result.points;
+			var conn = result.connectivity;
+
+			// create canvas
+			var canvas = document.createElement("canvas");
+			canvas.width = ''+canvasWidth;
+			canvas.height = ''+canvasHeight;
+			document.body.appendChild(canvas);
+			var context = canvas.getContext('2d');
+
+			// draw points
+			context.fillStyle = 'black';
+			for(var i = 0; i < points.length; ++i) {
+				context.beginPath();
+				context.arc(points[i][0], points[i][1], 2, 0, Math.PI * 2, false);
+				context.fill();
+			}
+
+			// draw triangles
+			context.fillStyle = 'lightyellow';
+			context.strokeStyle = 'black';
+			for(var i = 0; i < conn.length; ++i) {
+				context.beginPath();
+				context.moveTo(points[conn[i][0]][0], points[conn[i][0]][1]);
+				context.lineTo(points[conn[i][1]][0], points[conn[i][1]][1]);
+				context.lineTo(points[conn[i][2]][0], points[conn[i][2]][1]);
+				context.lineTo(points[conn[i][0]][0], points[conn[i][0]][1]);
+				context.stroke();
+				context.fill();
+			}
+
+		}
+
+		// generate circle boundary
+		function circle(center, rad, div) {
+			var inputPoints = [];
+			var th;
+			for(var i = 0; i < div; ++i) {
+				th = 2 * Math.PI / div * i;
+				inputPoints.push([center[0] + rad * Math.cos(th), center[1] + rad * Math.sin(th)]);
+			}
+			return { points: inputPoints };
+		}
+
+		// generate wave circle boundary
+		function waveCircle(center, rad, innerRad, div, numWave) {
+			var inputPoints = [];
+			var th;
+			var r;
+			for(var i = 0; i < div; ++i) {
+				th = 2 * Math.PI / div * i;
+				r = rad + innerRad * Math.sin(numWave * th);
+				inputPoints.push([center[0] + r * Math.cos(th), center[1] + r * Math.sin(th)]);
+			}
+			return { points: inputPoints };
+		}
+	</script>
+</head>
+<body>
+</body>
+</html>

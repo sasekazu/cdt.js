@@ -1,8 +1,8 @@
 cdt.js
 ======
-**拘束ドロネー三角形分割 (Constrained Delaunay Triangulation) に基づいた二次元三角形分割のJavaScriptライブラリ**
+**JavaScriptによる二次元三角形分割 (Constrained Delaunay Triangulation)**
 
-`cdt.js`は，二次元空間における境界内部を三角形分割する関数を提供します．三角形分割のアルゴリズムは，『谷口健男著，FEMのための要素自動分割，森北出版』を参考にした，拘束ドロネー三角分割 (Constrained Delaunay Triangulation, CDT) に基づいて実装されています．二次元空間における分割対象領域を多角形で合わらわされる境界で定義し，その内部を三角形分割します．領域内部への節点追加配置にも対応し，簡易的な有限要素法 (Finite Element Method, FEM) のプリプロセッサとして用いることもできます．
+`cdt.js`は，二次元空間における境界内部を三角形分割する関数を提供します．三角形分割のアルゴリズムは，『谷口健男著，FEMのための要素自動分割，森北出版』を参考に，拘束ドロネー三角分割 (Constrained Delaunay Triangulation, CDT) に基づいて実装されています．分割対象領域は多角形境界で定義します，領域内部への節点追加配置にも対応し，簡易的な有限要素法 (Finite Element Method, FEM) のプリプロセッサとして用いることもできます．
 
 
 
@@ -27,18 +27,22 @@ Install
 
 Usege
 ---
-ライブラリと称していますが関数はひとつしかありません．
+提供する関数はひとつだけです．
 ```javascript
 function cdt(boundaryPolygons, holeBoundaryPolygons, option) -> result
 ```
 `arg1` `boundaryPolygons`: 「境界を表す多角形の頂点座標配列」の配列.
 `arg2` `holeBoundaryPolygons`: 「穴境界を表す多角形の頂点座標配列」の配列.
-`arg3` `option`: 省略可能．詳細は例にて説明．
-`return value` `result`: プロパティ`points`に全頂点の座標，プロパティ`connectivity`に
+`arg3` `option`: 省略可能．詳細はExampleにて説明．
+`return value` `result`: 結果を格納したオブジェクト
+`return value` `result.points`:  全頂点の座標，
+`return value` `result.connectivity`:三角形を構成する頂点のIDリスト
+
+
 Example - Single boundary
 ---
 1. 入力データの準備
-分割対象領域を定義する境界を，多角形頂点座標の配列として準備します．
+境界を多角形頂点座標の配列として準備します．
 例えば，4点 (100, 100), (300, 100), (300, 200), (100, 200) を頂点とする多角形（四角形）の場合，以下のように配列を作成します．
 ```javascript
 var polygonPoints0 = [[100, 100], [300, 100], [300, 200], [100, 200]];	// Coordinates of vertices of a rectangle
@@ -119,7 +123,7 @@ var holeBoundary = [polygonPoints2];
 
 ![rectangle with hole](img/multiple2.png)
 
-このように外部境界が他の境界の内側にある場合は，その境界上の辺が分割後も保存されるように分割されます．このような分割が求めらえれるFEMのメッシュ分割にも用いることができます．
+このように外部境界が他の境界の内側にある場合は，その境界上の辺が分割後も保存されるように分割されます．
 
 次に`polygonPoints1`と`polygonPoints2`によって外部境界を作成する場合，
 以下のように配列を作成します．
@@ -131,14 +135,14 @@ var holeBoundary = [];
 
 ![rectangle with hole](img/multiple3.png)
 
-外部境界が分離している場合でも，`result.points`, `result.connectivity`にひとまとめに結果が出力されます．
+外部境界が分離している場合でも，ひとまとめにした結果が`result.points`, `result.connectivity`に出力されます．
 
 Example - Inner points addition
 ---
 FEMのための解析用メッシュに用いるには，領域内部を詳細に三角形分割をすることが求められます．
 例えば，歯車のような形状の境界データが得られているとします．
 これを以下のようにして分割すると，下の図のような境界が得られます．
-```javacrtipt
+```javascript
 cdt(boundary, holeboundary);
 ```
 
@@ -154,9 +158,9 @@ cdt(boundary, holeboundary, option);
 
 `option`のプロパティ`triSize`に数値を設定すると，大まかな三角形の辺のサイズを指定することができます．`auto`に設定すると入力した境界の辺の長さを平均した値に基づいて自動的に`triSize`を内部で生成します．
 
-Code example
+Code 
 ---
-[Code example](http://sasekazu.github.io/cdt.js/example/minimum)
+[Code (Rectangles)](http://sasekazu.github.io/cdt.js/example/minimum)
 ```javascript
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -213,6 +217,92 @@ Code example
 </body>
 </html>
 
+```
+
+[Code (Gear)](http://sasekazu.github.io/cdt.js/example/gear)
+
+```javascript
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>cdt.js minimum</title>
+	<script type="text/javascript" src="../../dist/cdt-0.1.min.js"></script>
+	<script>
+		window.onload = function () {
+
+			// input data
+			var canvasWidth = 400;
+			var canvasHeight = 300;
+			var center = [canvasWidth * 0.5, canvasHeight * 0.5];
+			var waveResult = waveCircle(center, 0.3 * canvasHeight, 0.1 * 0.3 * canvasHeight, 150, 20);
+			var boundary = [waveResult.points];
+			var circleResult = circle(center, 0.06 * canvasHeight, 20);
+			var holeBoundary = [circleResult.points];
+
+			// triangulate
+			var option = { triSize: 'auto' };
+			var result = cdt(boundary, holeBoundary, option);
+			var points = result.points;
+			var conn = result.connectivity;
+
+			// create canvas
+			var canvas = document.createElement("canvas");
+			canvas.width = ''+canvasWidth;
+			canvas.height = ''+canvasHeight;
+			document.body.appendChild(canvas);
+			var context = canvas.getContext('2d');
+
+			// draw points
+			context.fillStyle = 'black';
+			for(var i = 0; i < points.length; ++i) {
+				context.beginPath();
+				context.arc(points[i][0], points[i][1], 2, 0, Math.PI * 2, false);
+				context.fill();
+			}
+
+			// draw triangles
+			context.fillStyle = 'lightyellow';
+			context.strokeStyle = 'black';
+			for(var i = 0; i < conn.length; ++i) {
+				context.beginPath();
+				context.moveTo(points[conn[i][0]][0], points[conn[i][0]][1]);
+				context.lineTo(points[conn[i][1]][0], points[conn[i][1]][1]);
+				context.lineTo(points[conn[i][2]][0], points[conn[i][2]][1]);
+				context.lineTo(points[conn[i][0]][0], points[conn[i][0]][1]);
+				context.stroke();
+				context.fill();
+			}
+
+		}
+
+		// generate circle boundary
+		function circle(center, rad, div) {
+			var inputPoints = [];
+			var th;
+			for(var i = 0; i < div; ++i) {
+				th = 2 * Math.PI / div * i;
+				inputPoints.push([center[0] + rad * Math.cos(th), center[1] + rad * Math.sin(th)]);
+			}
+			return { points: inputPoints };
+		}
+
+		// generate wave circle boundary
+		function waveCircle(center, rad, innerRad, div, numWave) {
+			var inputPoints = [];
+			var th;
+			var r;
+			for(var i = 0; i < div; ++i) {
+				th = 2 * Math.PI / div * i;
+				r = rad + innerRad * Math.sin(numWave * th);
+				inputPoints.push([center[0] + r * Math.cos(th), center[1] + r * Math.sin(th)]);
+			}
+			return { points: inputPoints };
+		}
+	</script>
+</head>
+<body>
+</body>
+</html>
 ```
 
 ## Author
