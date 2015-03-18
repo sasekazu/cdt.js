@@ -62,7 +62,7 @@ function cdt(boundaryPoints, holeBoundaryPoints, option) {
 
 	// STEP3: 辺と閉境界との交差判定と交差解消
 	var itrCount = 0;
-	while(1) {
+	while(!option.softConstraint) {
 		if(itrCount > 2 * points.length) {
 			console.log("max iteration at cdt()");
 			break;
