@@ -25,7 +25,7 @@ function cdt(boundaryPoints, holeBoundaryPoints, option) {
 	if(option == undefined) {
 		option = {triSize:0, numSmoothing:0};
 	}
-	var resultInputGen = cdt.generateInputData(boundaryPoints, holeBoundaryPoints, option.triSize);
+	var resultInputGen = cdt.generateInputData(boundaryPoints, holeBoundaryPoints, option.triSize, option.cutoffLength);
 	// 点の座標を格納する配列
 	var points = resultInputGen.points;
 	// cst: constrainsの略
@@ -194,7 +194,33 @@ cdt.laplacianSmoothing = function (points, data) {
 }
 
 
-cdt.generateInputData = function (boundaryPoints, holeBoundaryPoints, triSize) {
+cdt.generateInputData = function (inputBoundaryPoints, inputHoleBoundaryPoints, triSize, cutoffLength) {
+
+	// 0. 入力境界を最小距離で間引く
+	// 境界の点群で隣同士の点が cutoffLength 以下に
+	// なるように間引く
+	if(cutoffLength == undefined) {
+		cutoffLength = 0;
+	}
+	var boundaryPoints = cullBoundary(inputBoundaryPoints, cutoffLength);
+	var holeBoundaryPoints = cullBoundary(inputHoleBoundaryPoints, cutoffLength);
+	function cullBoundary(boundary, cutoffLength) {
+		var output = [];
+		var tailPos;
+		var vec;
+		for(var i = 0; i < boundary.length; ++i) {
+			var single = [boundary[i][0]];
+			for(var j = 1; j < boundary[i].length; ++j) {
+				tailPos = single[single.length - 1];
+				vec = cdt.sub(tailPos, boundary[i][j]);
+				if(cdt.norm2(vec) > cutoffLength) {
+					single.push(boundary[i][j]);
+				}
+			}
+			output.push(single);
+		}
+		return output;
+	}
 
 	// 1. points の作成
 	// 入力された点の座標値はすべて一様に
