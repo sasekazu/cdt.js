@@ -26,6 +26,8 @@ function cdt(boundaryPoints, holeBoundaryPoints, option) {
 		option = {triSize:0, numSmoothing:0};
 	}
 	var resultInputGen = cdt.generateInputData(boundaryPoints, holeBoundaryPoints, option.triSize, option.cutoffLength);
+	boundaryPoints = resultInputGen.culledBoundaryPoints;
+	holeBoundaryPoints = resultInputGen.culledHoleBoundaryPoints;
 	// 点の座標を格納する配列
 	var points = resultInputGen.points;
 	// cst: constrainsの略
@@ -92,7 +94,7 @@ function cdt(boundaryPoints, holeBoundaryPoints, option) {
 	head = cdt.removeSuperTriangle(head, points);
 
 	// STEP5: 境界の内外判定と外部三角形の削除
-	head = cdt.removeOuterTriangles(head, points, boundaryPoints, holeBoundaryPoints);
+	head = cdt.removeOuterTriangles(head, points, boundaryPoints, holeBoundaryPoints, cst);
 
 	// STEP6: 三角形の品質向上のための平滑化
 	cdt.smoothing(head, points, cst, option.numSmoothing);
@@ -271,77 +273,71 @@ cdt.generateInputData = function (inputBoundaryPoints, inputHoleBoundaryPoints, 
 		constraint[i + offset].push(constraint[i + offset][0]);
 	}
 
-	// triSizeが指定されていないときは終了
-	if(triSize == undefined || triSize <= 0) {
-		return {
-			points: points,
-			constraint: constraint
-		}
-	}
-
-
 	// 3. 境界内に追加する点の追加
-
 	// triSize が　auto のとき，
-	// 境界のすべての辺の長さの平均をもとめて
-	// 
-	if(triSize == 'auto') {
-		var averageLength = 0;
-		var entryCount = 0;
-		var edgeVec;
-		for(var i = 0; i < boundaryPoints.length; ++i) {
-			for(var j = 0; j < boundaryPoints[i].length; ++j) {
-				edgeVec = cdt.sub(boundaryPoints[i][(j + 1) % boundaryPoints[i].length], boundaryPoints[i][j]);
-				averageLength += cdt.norm2(edgeVec);
-				++entryCount;
+	// 境界のすべての辺の長さの平均をもとめる
+	// triSizeが指定されていないときは終了
+	if(triSize != undefined && triSize > 0) {
+		if(triSize == 'auto') {
+			var averageLength = 0;
+			var entryCount = 0;
+			var edgeVec;
+			for(var i = 0; i < boundaryPoints.length; ++i) {
+				for(var j = 0; j < boundaryPoints[i].length; ++j) {
+					edgeVec = cdt.sub(boundaryPoints[i][(j + 1) % boundaryPoints[i].length], boundaryPoints[i][j]);
+					averageLength += cdt.norm2(edgeVec);
+					++entryCount;
+				}
+			}
+			for(var i = 0; i < holeBoundaryPoints.length; ++i) {
+				for(var j = 0; j < holeBoundaryPoints[i].length; ++j) {
+					edgeVec = cdt.sub(holeBoundaryPoints[i][(j + 1) % holeBoundaryPoints[i].length], holeBoundaryPoints[i][j]);
+					averageLength += cdt.norm2(edgeVec);
+					++entryCount;
+				}
+			}
+			averageLength /= entryCount;
+			triSize = averageLength * 2;
+		}
+		var additionalPoints = [];
+		var xmax = points[0][0];
+		var xmin = points[0][0];
+		var ymax = points[0][1];
+		var ymin = points[0][1];
+		for(var i = 0; i < points.length; ++i) {
+			if(xmax < points[i][0]) {
+				xmax = points[i][0];
+			}
+			if(xmin > points[i][0]) {
+				xmin = points[i][0];
+			}
+			if(ymax < points[i][1]) {
+				ymax = points[i][1];
+			}
+			if(ymin > points[i][1]) {
+				ymin = points[i][1];
 			}
 		}
-		for(var i = 0; i < holeBoundaryPoints.length; ++i) {
-			for(var j = 0; j < holeBoundaryPoints[i].length; ++j) {
-				edgeVec = cdt.sub(holeBoundaryPoints[i][(j + 1) % holeBoundaryPoints[i].length], holeBoundaryPoints[i][j]);
-				averageLength += cdt.norm2(edgeVec);
-				++entryCount;
+		var xdiv = (xmax - xmin) / triSize;
+		var ydiv = (ymax - ymin) / triSize;
+		var newPt;
+		for(var i = 0; i < xdiv + 1; ++i) {
+			for(var j = 0; j < ydiv + 1; ++j) {
+				newPt = [xmin + triSize * i, ymin + triSize * j];
+				if(cdt.isPointInsideOfBoundaries(newPt, boundaryPoints, holeBoundaryPoints)) {
+					additionalPoints.push(newPt);
+				}
 			}
 		}
-		averageLength /= entryCount;
-		triSize = averageLength * 2;
+		points = points.concat(additionalPoints);
 	}
-	var additionalPoints = [];
-	var xmax = points[0][0];
-	var xmin = points[0][0];
-	var ymax = points[0][1];
-	var ymin = points[0][1];
-	for(var i = 0; i < points.length; ++i) {
-		if(xmax < points[i][0]) {
-			xmax = points[i][0];
-		}
-		if(xmin > points[i][0]) {
-			xmin = points[i][0];
-		}
-		if(ymax < points[i][1]) {
-			ymax = points[i][1];
-		}
-		if(ymin > points[i][1]) {
-			ymin = points[i][1];
-		}
-	}
-	var xdiv = (xmax - xmin) / triSize;
-	var ydiv = (ymax - ymin) / triSize;
-	var newPt;
-	for(var i = 0; i < xdiv + 1; ++i) {
-		for(var j = 0; j < ydiv + 1; ++j) {
-			newPt = [xmin + triSize * i, ymin + triSize * j];
-			if(cdt.isPointInsideOfBoundaries(newPt, boundaryPoints, holeBoundaryPoints)) {
-				additionalPoints.push(newPt);
-			}
-		}
-	}
-	points = points.concat(additionalPoints);
 
-
+	
 	return {
 		points: points,
-		constraint: constraint
+		constraint: constraint,
+		culledBoundaryPoints: boundaryPoints,
+		culledHoleBoundaryPoints: holeBoundaryPoints
 	}
 }
 
@@ -528,21 +524,114 @@ cdt.removeOuterTrianglesForInnerTriangulation = function (head, cst) {
 }
 
 
-// 境界の内外判定と外部三角形の削除
-// 三角形の重心と境界の内外判定を行い，
-// 境界の外部であれば三角形を削除する
-// 三角形の隣接関係を用いれば高速化できるかもしれない
-cdt.removeOuterTriangles = function (head, points, boundaryPoints, holeBoundaryPoints) {
+// 三角形の境界内外判定と外部三角形の削除
+cdt.removeOuterTriangles = function (head, points, boundaryPoints, holeBoundaryPoints, cst) {
+
+	var classedTri = [];
+	while(1) {
+		// STEP1: 
+		// 削除判定されていない三角形tを探す
+		// isToBeRemove が undefined かどうかで探すことができる
+		// 見つからなければ終了する
+		var t = null;
+		for(var tri = head; tri != null; tri = tri.next) {
+			if(tri.isToBeRemoved == undefined) {
+				t = tri;
+				break;
+			}
+		}
+		if(t == null) {
+			break;
+		}
+
+		// STEP2: 
+		// tの削除判定を行い，t.isToBeRemoved に結果 true/false を格納する．
+		var triCenter = cdt.add(points[t.vertexID[0]], points[t.vertexID[1]]);
+		triCenter = cdt.div(cdt.add(triCenter, points[t.vertexID[2]]), 3);
+		t.isToBeRemoved = !cdt.isPointInsideOfBoundaries(triCenter, boundaryPoints, holeBoundaryPoints)
+
+
+		// STEP2: 
+		// tと隣接する三角形をスタック (Last In First Out) に格納．
+		// スタックから三角形を取りだし次々に隣接三角形を探索する
+		// スタックに格納するときに isToBeRemoved を t.isToBeRemoved と同じ値にする
+		// 隣接三角形の探索では以下の三角形を除外する
+		//  1. 境界をまたいでいる隣接三角形
+		//  2. すでに isToBeRemoved が設定されている三角形
+		// スタックが empty になったら終了する
+		var triStack = [];
+		var newTri = extractSameClassAdj(t, cst);
+		for(var i = 0; i < newTri.length; ++i) {
+			triStack.push(newTri[i]);
+			newTri[i].isToBeRemoved = t.isToBeRemoved;
+		}
+		while(1) {
+			if(triStack.length == 0) {
+				break;
+			}
+			var pulledTri = triStack[triStack.length-1];	// last out
+			triStack.splice(triStack.length-1, 1);			// remove last
+			newTri = extractSameClassAdj(pulledTri, cst);
+			for(var i = 0; i < newTri.length; ++i) {
+				triStack.push(newTri[i]);
+				newTri[i].isToBeRemoved = t.isToBeRemoved;
+			}
+		}
+	}
+	
+	// 削除の実行
 	var trinext;
 	for(var tri = head; tri != null; tri = trinext) {
 		trinext = tri.next;
-		var triCenter = cdt.add(points[tri.vertexID[0]], points[tri.vertexID[1]]);
-		triCenter = cdt.div(cdt.add(triCenter, points[tri.vertexID[2]]), 3);
-		if(!cdt.isPointInsideOfBoundaries(triCenter, boundaryPoints, holeBoundaryPoints)) {
+		if(tri.isToBeRemoved){
 			head = tri.remove(head);
 		}
 	}
+	
 	return head;
+
+	// 以下，ローカル関数
+
+	// triと隣接する三角形を抽出．
+	// ただし，以下の三角形を除外する
+	//  1. 境界をまたいでいる隣接三角形
+	//  2. すでに isToBeRemoved が設定されている三角形
+	function extractSameClassAdj(tri, cst) {
+		var newTri = [];
+		for(var i = 0; i < 3; ++i) {
+			if(
+				tri.adjacent[i] != null 
+				&& 
+				!isOnBoundary(tri.vertexID[i], tri.vertexID[(i+1)%3], cst)
+				)
+			{
+				if(tri.adjacent[i].isToBeRemoved == undefined) {
+					newTri.push(tri.adjacent[i]);
+				}
+			}
+		}
+		return newTri;
+	}
+	
+	// 頂点v1, v2 が 拘束境界 cst 上の辺かどうかを判定する
+	function isOnBoundary(v1, v2, cst) {
+		for(var i = 0; i < cst.length; ++i) {
+			for(var j = 0; j < cst[i].length; ++j) {
+				if(v1 == cst[i][j]) {
+					var cstiLen = cst[i].length;
+					if(
+						v2 == cst[i][(j+1)%cstiLen]	// cst[i][j]の次の頂点
+						||
+						v2 == cst[i][(j+cstiLen-1)%cstiLen]	// cst[i][j]の前の頂点
+					) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
 }
 
 
@@ -878,7 +967,8 @@ cdt.DelaunayTriangle = function(points, indices) {
 	this.prev;	// 双方向連結リストの前ポインタ
 	this.next;	// 双方向連結リストの次ポインタ
 	this.init(points, indices);
-	this.isRemoved;	// 削除フラグ
+	this.isRemoved;	// 削除済みフラグ
+	this.isToBeRemoved;	// 削除予定フラグ，削除判定に用いる．trueの場合，後に一括削除され，isRemovedがtrueになる．
 }
 
 // 初期化関数
