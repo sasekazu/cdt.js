@@ -1162,8 +1162,15 @@ cdt.DelaunayTriangle.prototype.addPoint = function (newPointID, points, constrai
 	stack.push(newTri[0]);
 	stack.push(newTri[1]);
 	stack.push(newTri[2]);
+	var num_max_swap_itr = points.length;
+	var count_swap = 0;
 	while(stack.length != 0) {
+		if(count_swap > num_max_swap_itr) {
+			console.log("Error at cdt.DelaunayTriangle.addPoint. Over num_max_swap_itr");
+			break;
+		}
 		cdt.DelaunayTriangle.swapping(stack, newPointID, points, constraint);
+		++count_swap;
 	}
 
 }
@@ -1281,11 +1288,12 @@ cdt.DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint)
 	var vEdge, vPt;
 	var isPointInner = false;
 	var edgeTmp;
-	var num_max_itr = points.length/10;
+	var num_max_itr = points.length*2;
 	var count = 0;
+	allPossibleTriangleDetection(head, newPoint);
 	while(1) {
 		if(count > num_max_itr) {
-			console.log("Error at cdt.DelaunayTriangle.lawsonTriangleDetection: Over max_itr");
+			console.log("Error at cdt.DelaunayTriangle.lawsonTriangleDetection: Over max_itr count:" + count + "/max:" + num_max_itr);
 			return allPossibleTriangleDetection(head, newPoint);
 		}
 		isPointInner = true;
@@ -1328,6 +1336,8 @@ cdt.DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint)
 				return tri;
 			}
 		}
+		console.log("Error at allPossibleTriangleDetection. No triangle including the point found.");
+		return tri;
 	}
 }
 
