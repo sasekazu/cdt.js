@@ -1281,12 +1281,12 @@ cdt.DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint)
 	var vEdge, vPt;
 	var isPointInner = false;
 	var edgeTmp;
-	var num_max_itr = points.length;
+	var num_max_itr = points.length/10;
 	var count = 0;
 	while(1) {
 		if(count > num_max_itr) {
 			console.log("Error at cdt.DelaunayTriangle.lawsonTriangleDetection: Over max_itr");
-			return triTmp;
+			return allPossibleTriangleDetection(head, newPoint);
 		}
 		isPointInner = true;
 		for(var i = 0; i < 3; ++i) {
@@ -1309,6 +1309,25 @@ cdt.DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint)
 			return triTmp;
 		}
 		++count;
+	}
+
+	// 総当たり判定 - ローソンの探査法が最大反復数に達したら実行
+	function allPossibleTriangleDetection(head, newPoint) {
+		for(var tri = head; tri != null; tri = tri.next) {
+			var isPointInner = true;
+			for(var i = 0; i < 3; ++i) {
+				vPt = cdt.sub(newPoint, points[tri.vertexID[i]]);
+				vEdge = cdt.sub(points[tri.vertexID[(i + 1) % 3]], points[tri.vertexID[i]]);
+				// newPointが辺ベクトルの右側にあれば右隣りの三角形に移る
+				if(vPt[0] * vEdge[1] - vPt[1] * vEdge[0] > 0) {
+					isPointInner = false;
+					break;
+				}
+			}
+			if(isPointInner) {
+				return tri;
+			}
+		}
 	}
 }
 
