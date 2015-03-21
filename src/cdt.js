@@ -1281,7 +1281,13 @@ cdt.DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint)
 	var vEdge, vPt;
 	var isPointInner = false;
 	var edgeTmp;
+	var num_max_itr = points.length;
+	var count = 0;
 	while(1) {
+		if(count > num_max_itr) {
+			console.log("Error at cdt.DelaunayTriangle.lawsonTriangleDetection: Over max_itr");
+			return triTmp;
+		}
 		isPointInner = true;
 		for(var i = 0; i < 3; ++i) {
 			vPt = cdt.sub(newPoint, points[triTmp.vertexID[edge]]);
@@ -1302,6 +1308,7 @@ cdt.DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint)
 		if(isPointInner) {
 			return triTmp;
 		}
+		++count;
 	}
 }
 
