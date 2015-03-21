@@ -25,7 +25,7 @@ function cdt(boundaryPoints, holeBoundaryPoints, option) {
 	if(option == undefined) {
 		option = {triSize:0, numSmoothing:0};
 	}
-	var resultInputGen = cdt.generateInputData(boundaryPoints, holeBoundaryPoints, option.triSize, option.cutoffLength);
+	var resultInputGen = cdt.generateInputData(boundaryPoints, holeBoundaryPoints, option);
 	boundaryPoints = resultInputGen.culledBoundaryPoints;
 	holeBoundaryPoints = resultInputGen.culledHoleBoundaryPoints;
 	// 点の座標を格納する配列
@@ -196,7 +196,11 @@ cdt.laplacianSmoothing = function (points, data) {
 }
 
 
-cdt.generateInputData = function (inputBoundaryPoints, inputHoleBoundaryPoints, triSize, cutoffLength) {
+cdt.generateInputData = function (inputBoundaryPoints, inputHoleBoundaryPoints, option) {
+
+	var triSize = option.triSize;
+	var cutoffLength = option.cutoffLength;
+	var merge = option.merge;
 
 	// 0. 入力境界を最小距離で間引く
 	// 境界の点群で隣同士の点が cutoffLength 以下に
@@ -332,6 +336,50 @@ cdt.generateInputData = function (inputBoundaryPoints, inputHoleBoundaryPoints, 
 		points = points.concat(additionalPoints);
 	}
 
+	var modifiedPoints = [];
+	var duplicateMap = [];
+	if(merge) {
+		// pointsから重複する座標を削除
+		for(var i = 0; i < points.length; ++i) {
+			var isDuplicated = false;
+			for(var j = 0; j < i; ++j) {
+				if(
+					points[i][0] == points[j][0] 
+					&& points[i][1] == points[j][1]
+					) 
+				{
+					isDuplicated = true;
+					break;
+				}
+			}
+			if(isDuplicated) {
+				duplicateMap.push({original: i, modified: j});
+			} else {
+				modifiedPoints.push(points[i]);
+			}
+		}
+		// constraintの修正
+		var indexMap = new Array(points.length);
+		var di = 0;
+		if(duplicateMap.length > 0) {
+			for(var i = 0; i < indexMap.length; ++i) {
+				if(di == duplicateMap.length) {
+					indexMap[i] = i - di;
+				}else if(i == duplicateMap[di].original) {
+					indexMap[i] = duplicateMap[di].modified;
+					++di;
+				} else {
+					indexMap[i] = i - di;
+				}
+			}
+			for(var ci = 0; ci < constraint.length; ++ci) {
+				for(var cj = 0; cj < constraint[ci].length; ++cj) {
+					constraint[ci][cj] = indexMap[constraint[ci][cj]];
+				}
+			}
+		}
+		points = cdt.clone(modifiedPoints);
+	}
 	
 	return {
 		points: points,
