@@ -59,6 +59,9 @@ function cdt(boundaryPoints, holeBoundaryPoints, option) {
 	var resultTri = head;
 	for(var i = 0; i < points.length - 3; ++i) {
 		resultTri = cdt.DelaunayTriangle.lawsonTriangleDetection(points, resultTri, points[i]);
+		if(resultTri == null) {
+			continue;;
+		}
 		resultTri.addPoint(i, points, cst);
 	}
 
@@ -226,6 +229,21 @@ cdt.generateInputData = function (inputBoundaryPoints, inputHoleBoundaryPoints, 
 			output.push(single);
 		}
 		return output;
+	}
+
+	// 0. 点が3個以下の境界を削除する
+	boundaryPoints = ignoreTooSmallNumberBoundary(boundaryPoints);
+	holeBoundaryPoints = ignoreTooSmallNumberBoundary(holeBoundaryPoints);
+	function ignoreTooSmallNumberBoundary(boundary) {
+		var outputBoundary = [];
+		for(var i = 0; i < boundary.length; ++i) {
+			if(boundary[i].length >= 3) {
+				outputBoundary.push(boundary[i]);
+			} else {
+				console.log("deleted");
+			}
+		}
+		return outputBoundary;
 	}
 
 	// 1. points の作成
@@ -1283,6 +1301,9 @@ cdt.DelaunayTriangle.swapping = function (stack, newPointID, points, constraint)
 // ローソンの探査法
 cdt.DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint) {
 	// head から順にローソンのアルゴリズムを適用していく
+	if(head == null) {
+		return null;
+	}
 	var triTmp = head;
 	var edge = 0;
 	var vEdge, vPt;
@@ -1307,7 +1328,7 @@ cdt.DelaunayTriangle.lawsonTriangleDetection = function (points, head, newPoint)
 				edge = (edgeTmp + 1) % 3
 				isPointInner = false;
 				if(triTmp == null) {
-					alert("Triangle search failed.");
+					return null;
 				}
 				break;
 			}
