@@ -1,8 +1,8 @@
 cdt.js
 ======
-**JavaScriptによる二次元三角形分割 (Constrained Delaunay Triangulation)**
+**Two-Dimensional Triangulation in JavaScript (Constrained Delaunay Triangulation)**
 
-`cdt.js`は，二次元空間における境界内部を三角形分割する関数を提供します．三角形分割のアルゴリズムは，『谷口健男著，FEMのための要素自動分割，森北出版』を参考に，拘束ドロネー三角分割 (Constrained Delaunay Triangulation, CDT) に基づいて実装されています．分割対象領域は多角形境界で定義します，領域内部への節点追加配置にも対応し，簡易的な有限要素法 (Finite Element Method, FEM) のプリプロセッサとして用いることもできます．
+`cdt.js` provides a function for triangulating the interior of boundaries in two-dimensional space. The triangulation algorithm is implemented based on Constrained Delaunay Triangulation (CDT), referencing "Takeo Taniguchi, Automatic Element Subdivision for FEM, Morikita Publishing" (谷口健男，FEMのための要素自動分割，森北出版). The region to be subdivided is defined by polygon boundaries. It also supports the placement of additional nodes inside the region, and can be used as a simple preprocessor for the Finite Element Method (FEM).
 
 
 
@@ -19,136 +19,136 @@ Demo
 
 Install
 ---
-`dist/cdt-0.1.min.js` を直接読み込んで使用します．
+Directly load and use `dist/cdt-0.1.min.js`.
 ```html
 <script type='text/javascript' src='cdt.js'></script>
 ```
 
 
-Usege
+Usage
 ---
-提供する関数はひとつだけです．
+Only one function is provided:
 ```javascript
 function cdt(boundaryPolygons, holeBoundaryPolygons, option) -> result
 ```
-`arg1` `boundaryPolygons`: 「境界を表す多角形の頂点座標配列」の配列.
-`arg2` `holeBoundaryPolygons`: 「穴境界を表す多角形の頂点座標配列」の配列.
-`arg3` `option`: 省略可能．詳細はExampleにて説明．
-`return value` `result`: 結果を格納したオブジェクト
-`return value` `result.points`:  全頂点の座標，
-`return value` `result.connectivity`:三角形を構成する頂点のIDリスト
+`arg1` `boundaryPolygons`: Array of "arrays of polygon vertex coordinates representing boundaries".
+`arg2` `holeBoundaryPolygons`: Array of "arrays of polygon vertex coordinates representing hole boundaries".
+`arg3` `option`: Optional. Details explained in Examples.
+`return value` `result`: Object containing the results.
+`return value` `result.points`: Coordinates of all vertices.
+`return value` `result.connectivity`: List of vertex IDs that compose the triangles.
 
 
 Example - Single boundary
 ---
-1. 入力データの準備
-境界を多角形頂点座標の配列として準備します．
-例えば，4点 (100, 100), (300, 100), (300, 200), (100, 200) を頂点とする多角形（四角形）の場合，以下のように配列を作成します．
+1. Prepare input data
+Prepare the boundary as an array of polygon vertex coordinates.
+For example, for a polygon (rectangle) with 4 vertices at (100, 100), (300, 100), (300, 200), (100, 200), create an array as follows:
 ```javascript
 var polygonPoints0 = [[100, 100], [300, 100], [300, 200], [100, 200]];	// Coordinates of vertices of a rectangle
 ```
-多角形の境界が自己交差しないよう注意してください．`cdt.js`は境界に交差がないことを前提としており，エラー処理や交差チェックは未実装です．
+Please ensure that the polygon boundaries do not self-intersect. `cdt.js` assumes there are no boundary intersections, and error handling and intersection checks are not implemented.
 
-2. 三角形分割の実行
-領域を三角形分割するには，以下のように関数`cdt`を呼びます．
+1. Execute triangulation
+To triangulate the region, call the `cdt` function as follows:
 ```javascript
 var result = cdt([polygonPoints0], []);
 ```
-`cdt`の第一引数を`Array` of `Array`として渡すのは，後述の複数境界のデータ形式と合わせるためです．
-第二引数は穴の境界多角形の頂点座標を与えますが，ここでは空配列を渡しています（現状では省略できません）．
-複数境界，穴の追加については後述します．
+The first argument of `cdt` is passed as an `Array` of `Array` to match the data format for multiple boundaries described later.
+The second argument provides the vertex coordinates of hole boundary polygons, but here we pass an empty array (currently cannot be omitted).
+Multiple boundaries and adding holes are described later.
 
-3. 結果の取り出し
-分割結果は以下のように取り出します．
+1. Extract results
+Extract the triangulation results as follows:
 ```javascript
 var points = result.points;
 var conn = result.connectivity;
 ```
-ここで，`points`は頂点座標を格納した配列で，この例の場合，`polygonPoints0`と同じ値を持ちます．
-`conn`は三角形の結合情報を表すコネクティビティ配列です．
-例えば，i番目の三角形の頂点座標は以下のようにアクセスします．
+Here, `points` is an array containing vertex coordinates, and in this example, has the same values as `polygonPoints0`.
+`conn` is a connectivity array representing the connection information of triangles.
+For example, the vertex coordinates of the i-th triangle can be accessed as follows:
 ```javascript
 p0 = points[conn[i][0]];
 p1 = points[conn[i][1]];
 p2 = points[conn[i][2]];
 ```
-この例の分割結果は下の図のようになります．
+The triangulation result for this example is shown in the figure below.
 
 ![rectangle](img/square.png)
 
 Example - Hole boundary
 ---
-通常境界と同様に，穴境界についても頂点座標の配列を作成します．
-例えば，上記の長方形に加えて，小さい四角形の頂点座標配列を以下のように作成します．
+As with regular boundaries, create an array of vertex coordinates for hole boundaries as well.
+For example, in addition to the above rectangle, create a vertex coordinate array for a small square as follows:
 ```javascript
 var polygonPoints0 = [[100, 100], [300, 100], [300, 200], [100, 200]];	// Large rectangle
 var polygonPoints1 = [[170, 170], [130, 170], [130, 130], [170, 130]];	// Small square
 ```
-三角形分割するには，`cdt`の第二引数に`polygonPoints1`を渡します．
+To triangulate, pass `polygonPoints1` as the second argument to `cdt`:
 ```javascript
 var result = cdt([polygonPoints0],[polygonPoints1]);
 ```
-結果の取り出しは Single boundary の場合と同様です．
-分割結果は以下のようになります．
+Extracting results is the same as in the single boundary case.
+The triangulation result is as follows:
 
 ![rectangle with hole](img/hole.png)
 
 Example - Multiple boundary
 ---
-以下のように`polygonPoints0`, `polygonPoints1`, `hpolygonPoints2` を作成したとします．
+Suppose you have created `polygonPoints0`, `polygonPoints1`, and `polygonPoints2` as follows:
 ```javascript
 var polygonPoints0 = [[100, 100], [300, 100], [300, 200], [100, 200]];	// Large rectangle
 var polygonPoints1 = [[170, 170], [130, 170], [130, 130], [170, 130]];	// Small square (left)
 var polygonPoints2 = [[270, 170], [230, 170], [230, 130], [270, 130]];	// Small square (right）
 ```
-`polygonPoints0`によって外部境界を，`polygonPoints1`, `polygonPoints2`によって穴境界を定義したい場合，以下のような配列を作成します．
+If you want to define the outer boundary with `polygonPoints0` and hole boundaries with `polygonPoints1` and `polygonPoints2`, create arrays as follows:
 ```javascript
 var boundary = [polygonPoints0];
 var holeBoundary = [polygonPoints1, polygonPoints2];
 ```
-三角形分割は`cdt()`を以下のように呼び出します．
+Call `cdt()` for triangulation as follows:
 ```javascript
 var result = cdt(boundary, holeBoundary);
 ```
-分割結果は大きい長方形の内部に二つの小さい穴が生成されます．
+The triangulation result generates two small holes inside the large rectangle.
 
 ![rectangle with hole](img/multiple1.png)
 
-`polygonPoints0`と`polygonPoints1`によって外部境界を，`polygonPoints2`によって穴境界を定義したい場合，以下のような配列を作成します．
+If you want to define the outer boundaries with `polygonPoints0` and `polygonPoints1`, and the hole boundary with `polygonPoints2`, create arrays as follows:
 ```javascript
 var boundary = [polygonPoints0, polygonPoints1];
 var holeBoundary = [polygonPoints2];
 ```
-分割結果は下のようになります．
+The triangulation result will be as shown below.
 
 ![rectangle with hole](img/multiple2.png)
 
-このように外部境界が他の境界の内側にある場合は，その境界上の辺が分割後も保存されるように分割されます．
+When an outer boundary is inside another boundary like this, the triangulation preserves the edges on that boundary after subdivision.
 
-次に`polygonPoints1`と`polygonPoints2`によって外部境界を作成する場合，
-以下のように配列を作成します．
+Next, when creating outer boundaries with `polygonPoints1` and `polygonPoints2`,
+create arrays as follows:
 ```javascript
 var boundary = [polygonPoints1, polygonPoints2];
 var holeBoundary = [];
 ```
-分割結果は以下のようになります．
+The triangulation result will be as follows:
 
 ![rectangle with hole](img/multiple3.png)
 
-外部境界が分離している場合でも，ひとまとめにした結果が`result.points`, `result.connectivity`に出力されます．
+Even when outer boundaries are separated, the combined result is output to `result.points` and `result.connectivity`.
 
 Example - Inner points addition
 ---
-FEMのための解析用メッシュに用いるには，領域内部を詳細に三角形分割をすることが求められます．
-例えば，歯車のような形状の境界データが得られているとします．
-これを以下のようにして分割すると，下の図のような境界が得られます．
+For use as an analysis mesh for FEM, detailed triangulation inside the region is required.
+For example, suppose you have boundary data for a gear-shaped region.
+When you triangulate it as follows, you get the boundary shown in the figure below:
 ```javascript
 cdt(boundary, holeboundary);
 ```
 
 ![rectangle with hole](img/gear.png)
 
-領域内部をより詳細に分割する場合は，以下のように`option`を与えることで自動的に領域内部に節点を配置して分割します．
+For more detailed subdivision inside the region, provide `option` as follows to automatically place nodes inside the region and subdivide:
 ```javascript
 var option = {triSize: 'auto'}
 cdt(boundary, holeboundary, option);
@@ -156,7 +156,7 @@ cdt(boundary, holeboundary, option);
 
 ![rectangle with hole](img/gear-inner.png)
 
-`option`のプロパティ`triSize`に数値を設定すると，大まかな三角形の辺のサイズを指定することができます．`auto`に設定すると入力した境界の辺の長さを平均した値に基づいて自動的に`triSize`を内部で生成します．
+Setting a numeric value for the `triSize` property in `option` allows you to specify the approximate size of triangle edges. Setting it to `auto` automatically generates `triSize` internally based on the average length of the input boundary edges.
 
 Code 
 ---

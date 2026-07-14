@@ -1,14 +1,14 @@
 // JavaScript Document
 
-$(document).ready(function () {
-	initEvents($("#myCanvas"));
+document.addEventListener('DOMContentLoaded', function () {
+	initEvents(document.getElementById('myCanvas'));
 });
 
 // キャンバスにイベントを紐付ける関数
 function initEvents(canvas) {
 
-	var canvasWidth = canvas.width();
-	var canvasHeight = canvas.height();
+	var canvasWidth = canvas.width;
+	var canvasHeight = canvas.height;
 	var inputPoints = [];	// 入力頂点
 	var boundaryPoints = [];
 	var holeBoundaryPoints = [];
@@ -63,10 +63,10 @@ function initEvents(canvas) {
 	draw();
 
 	// mouseクリック時のイベントコールバック設定
-	canvas.mousedown(function (event) {
+	canvas.addEventListener('mousedown', function (event) {
 		// 左クリック or 右クリック
 		if(event.button == 2 || event.button == 0) {
-			var canvasOffset = canvas.offset();
+			var canvasOffset = canvas.getBoundingClientRect();
 			var canvasX = Math.floor(event.pageX - canvasOffset.left);
 			var canvasY = Math.floor(event.pageY - canvasOffset.top);
 			if(canvasX < 0 || canvasX > canvasWidth) {
@@ -89,8 +89,8 @@ function initEvents(canvas) {
 		}
 	});
 	// mouse移動時のイベントコールバック設定
-	canvas.mousemove(function (event) {
-		var canvasOffset = canvas.offset();
+	canvas.addEventListener('mousemove', function (event) {
+		var canvasOffset = canvas.getBoundingClientRect();
 		var canvasX = Math.floor(event.pageX - canvasOffset.left);
 		var canvasY = Math.floor(event.pageY - canvasOffset.top);
 		if(canvasX < 0 || canvasX > canvasWidth) {
@@ -105,17 +105,19 @@ function initEvents(canvas) {
 		}
 	});
 	// mouseクリック解除時のイベントコールバック設定
-	$(window).mouseup(function (event) {
+	window.addEventListener('mouseup', function (event) {
 		selectPoint = null;
 		draw();
 	});
 
-	$("input").click(function () {
-		draw()
+	document.querySelectorAll('input').forEach(function(input) {
+		input.addEventListener('click', function () {
+			draw();
+		});
 	});
 
 	// リセットボタン
-	$("#reset").click(function () {
+	document.getElementById('reset').addEventListener('click', function () {
 		inputPoints = [];
 		points = [];
 		selectPoint = null;
@@ -127,10 +129,10 @@ function initEvents(canvas) {
 	// レンダリングのリフレッシュを行う関数
 	function draw() {
 
-		var context = canvas.get(0).getContext("2d");
+		var context = canvas.getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
 
-		var innerTriangulation = $('#innerCheckbox:checked').val() 
+		var innerTriangulation = document.getElementById('innerCheckbox').checked 
 
 		// 三角形分割
 		var option;
@@ -209,9 +211,9 @@ function initEvents(canvas) {
 }
 
 function drawPoints(canvas, points, rad) {
-	var context = canvas.get(0).getContext("2d");
-	var canvasWidth = canvas.width();
-	var canvasHeight = canvas.height();
+	var context = canvas.getContext("2d");
+	var canvasWidth = canvas.width;
+	var canvasHeight = canvas.height;
 	context.setTransform(1, 0, 0, 1, 0, 0);
 	for(var i = 0; i < points.length; ++i) {
 		context.beginPath();
