@@ -1,19 +1,18 @@
 // JavaScript Document
-/// <reference path="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js" />
 
 var colors = ['lightsalmon', 'lightseagreen', 'aquamarine', 'beige', 'burlywood', 'mistyrose', 'mediumpurple', 'darkcyan', 'darkgray', 'orchid', 'peru', 'dodgerblue'];
 var N = 1000;
 var distMin = 10;
 
-$(document).ready(function () {
-	initEvents($("#myCanvas"));
+document.addEventListener('DOMContentLoaded', function () {
+	initEvents(document.getElementById('myCanvas'));
 });
 
 // キャンバスにイベントを紐付ける関数
 function initEvents(canvas) {
 
-	var canvasWidth = canvas.width();
-	var canvasHeight = canvas.height();
+	var canvasWidth = canvas.width;
+	var canvasHeight = canvas.height;
 
 	var inputPoints = [];	// 入力頂点
 	var points = [];	// 頂点の座標群
@@ -100,10 +99,10 @@ function initEvents(canvas) {
 	draw();
 
 	// mouseクリック時のイベントコールバック設定
-	canvas.mousedown(function (event) {
+	canvas.addEventListener('mousedown', function (event) {
 		// 右クリック
 		if(event.button == 2 || event.button == 0) {
-			var canvasOffset = canvas.offset();
+			var canvasOffset = canvas.getBoundingClientRect();
 			var canvasX = Math.floor(event.pageX - canvasOffset.left);
 			var canvasY = Math.floor(event.pageY - canvasOffset.top);
 			if(canvasX < 0 || canvasX > canvasWidth) {
@@ -124,8 +123,8 @@ function initEvents(canvas) {
 		}
 	});
 	// mouse移動時のイベントコールバック設定
-	canvas.mousemove(function (event) {
-		var canvasOffset = canvas.offset();
+	canvas.addEventListener('mousemove', function (event) {
+		var canvasOffset = canvas.getBoundingClientRect();
 		var canvasX = Math.floor(event.pageX - canvasOffset.left);
 		var canvasY = Math.floor(event.pageY - canvasOffset.top);
 		if(canvasX < 0 || canvasX > canvasWidth) {
@@ -140,17 +139,19 @@ function initEvents(canvas) {
 		}
 	});
 	// mouseクリック解除時のイベントコールバック設定
-	$(window).mouseup(function (event) {
+	window.addEventListener('mouseup', function (event) {
 		selectPoint = null;
 		draw();
 	});
 
-	$("input").click(function () {
-		draw()
+	document.querySelectorAll('input').forEach(function(input) {
+		input.addEventListener('click', function () {
+			draw();
+		});
 	});
 
 	// リセットボタン
-	$("#reset").click(function () {
+	document.getElementById('reset').addEventListener('click', function () {
 		inputPoints = [];
 		points = [];
 		head = [];
@@ -165,7 +166,7 @@ function initEvents(canvas) {
 	// レンダリングのリフレッシュを行う関数
 	function draw() {
 
-		var context = canvas.get(0).getContext("2d");
+		var context = canvas.getContext("2d");
 		context.clearRect(0, 0, canvasWidth, canvasHeight);
 
 		//console.log(""+inputPoints);
@@ -250,9 +251,9 @@ function initEvents(canvas) {
 
 
 function drawPoints(canvas, points, rad) {
-	var context = canvas.get(0).getContext("2d");
-	var canvasWidth = canvas.width();
-	var canvasHeight = canvas.height();
+	var context = canvas.getContext("2d");
+	var canvasWidth = canvas.width;
+	var canvasHeight = canvas.height;
 	context.setTransform(1, 0, 0, 1, 0, 0);
 	for(var i = 0; i < points.length; ++i) {
 		context.beginPath();
@@ -262,9 +263,9 @@ function drawPoints(canvas, points, rad) {
 }
 
 function drawTrianglesFromHead(canvas, points, head) {
-	var context = canvas.get(0).getContext("2d");
-	var canvasWidth = canvas.width();
-	var canvasHeight = canvas.height();
+	var context = canvas.getContext("2d");
+	var canvasWidth = canvas.width;
+	var canvasHeight = canvas.height;
 	context.setTransform(1, 0, 0, 1, 0, 0);
 	for(var tri = head; tri != null; tri = tri.next) {
 		context.beginPath();
@@ -279,9 +280,9 @@ function drawTrianglesFromHead(canvas, points, head) {
 
 
 function fillTrianglesFromHead(canvas, points, head) {
-	var context = canvas.get(0).getContext("2d");
-	var canvasWidth = canvas.width();
-	var canvasHeight = canvas.height();
+	var context = canvas.getContext("2d");
+	var canvasWidth = canvas.width;
+	var canvasHeight = canvas.height;
 	context.setTransform(1, 0, 0, 1, 0, 0);
 	var i = 0;
 	for(var tri = head; tri != null; tri = tri.next) {
@@ -299,7 +300,7 @@ function fillTrianglesFromHead(canvas, points, head) {
 
 // 三角形の外接円を描画
 function drawCircumcirclesFromHead(canvas, points, head) {
-	var context = canvas.get(0).getContext("2d");
+	var context = canvas.getContext("2d");
 	var cir;
 	var i = 0;
 	context.globalAlpha = 0.3;
@@ -317,7 +318,7 @@ function drawCircumcirclesFromHead(canvas, points, head) {
 
 
 function drawAdjacents(canvas, points, head) {
-	var context = canvas.get(0).getContext("2d");
+	var context = canvas.getContext("2d");
 	var v1 = [];
 	var v2 = [];
 	var v12 = [];
